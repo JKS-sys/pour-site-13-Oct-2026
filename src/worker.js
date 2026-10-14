@@ -50,7 +50,9 @@ async function siteShell(env) {
   let value = null;
   try {
     const host = env.SITE_HOST || "ipconfig.co.network";
-    const r = await fetch(`https://${host}/about`, { headers: { "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36", accept: "text/html" }, cf: { cacheTtl: 600 } });
+    // SHELL_ORIGIN lets a local run borrow the shell from a local copy of the site (http://127.0.0.1:8787).
+    const origin = env.SHELL_ORIGIN || `https://${host}`;
+    const r = await fetch(`${origin}/about`, { headers: { "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36", accept: "text/html" }, cf: { cacheTtl: 600 } });
     if (r.ok) {
       const html = await r.text();
       const h0 = html.indexOf('<header class="bar"'), h1 = html.indexOf("<main");
@@ -59,7 +61,8 @@ async function siteShell(env) {
       const scripts = (html.match(/<script[^>]*src="\/[^"]+"[^>]*><\/script>/g) || []).filter((t) => !t.includes("/pour/")).join("\n");
       if (h0 > 0 && h1 > h0 && f0 > h1 && f1 > f0 && head) {
         // the shell came from /about: move the "current page" mark onto the Pour link
-        const header = html.slice(h0, h1).replace(/ aria-current="page"/g, "").replace(/<a ([^>]*href="\/pour"[^>]*)>/, '<a $1 aria-current="page">');
+        // (the bar's own link is a plain <a href="/pour">; the Apps menu also links /pour, so match exactly)
+        const header = html.slice(h0, h1).replace(/ aria-current="page"/g, "").replace('<a href="/pour">', '<a href="/pour" aria-current="page">');
         value = { head, header, footer: html.slice(f0, f1 + 9), scripts };
       }
     }
@@ -152,7 +155,7 @@ export default {
       return json({ name: "pour", version: String(rel.tag_name || "").replace(/^v/, ""), notes: rel.body || "", pub_date: rel.published_at, assets });
     }
     if (rest.startsWith("dl/")) {
-      // dl/<asset> is the newest release; dl/v1.2.3/<asset> a pinned one (what the Homebrew tap uses).
+      // dl/<asset> is the newest release; dl/v1.2.3/<asset> a pinned one (what pinned installs and pour self-update use).
       const m = /^dl\/(?:(v[0-9][0-9A-Za-z.-]*)\/)?([A-Za-z0-9._-]+)$/.exec(rest);
       if (!m) return notFoundResponse(request, env);
       const [, ver, asset] = m;

@@ -37,7 +37,7 @@ One Cloudflare Worker on routes <code>ipconfig.co.network/pour*</code>, ahead of
 | `/pour` | home — install, demo, why, packages, apps, everywhere, sponsor |
 | `/pour/install` | the installer (`curl … \| sh`), from R2 or GitHub |
 | `/pour/releases/latest.json` | release feed with per-file SHA-256 — `pour self-update` and the installer read it |
-| `/pour/dl/<asset>` · `/pour/dl/v0.1.0/<asset>` | binary mirror, newest or pinned to a version (falls back to GitHub Releases); the Homebrew tap formula installs from the pinned path |
+| `/pour/dl/<asset>` · `/pour/dl/v0.1.0/<asset>` | binary mirror, newest or pinned to a version (falls back to GitHub Releases); pinned paths never change |
 | `/pour/registry/index.pour.gz` · `index.json` · `search.json` · `changes.json` | the registry, with ETags |
 | `/pour/apps/index.json` | the pour-apps registry |
 | `/pour/search?q=` · `/pour/api/search?q=` | package search, HTML and JSON |
@@ -61,7 +61,8 @@ The site is deployed by `pour/update.sh` (step `site`) and by hand with `npm run
 
 ## Design notes
 
-- Same header, colours (gold on warm neutrals, no pink), fonts (Libre Baskerville, Plex Mono) and theme/sound controls as the rest of ipconfig.co.network; the Pour pages carry their own fallback tokens so they stand alone too.
+- The pages wear the live site's own header, footer, stylesheet and scripts (fetched from `/about`, cached 10 minutes), so the background (graph paper and the living node backdrop), the nav with its one **Sign in** button, the hero aurora, the `.prompt` command boxes and the theme/sound buttons are exactly the site's. `public/pour/style.css` only adds the Pour bits; its fallback tokens apply only when the site cannot be reached (`data-shell="fallback"`).
+- No Homebrew formula or tap: Pour installs itself (`curl -fsSL https://ipconfig.co.network/pour/install | sh`) and every app after that (`pour install <app>`).
 - Sounds are synthesised with Web Audio (clicks, a glug when the demo pours, a chime on ✓) and off with the site-wide toggle; motion respects `prefers-reduced-motion`.
 - Server-rendered HTML with JSON-LD, Open Graph, a sitemap and 16 px gutters on phones; nothing to build.
 
