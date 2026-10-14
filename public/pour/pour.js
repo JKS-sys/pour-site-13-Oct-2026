@@ -5,11 +5,15 @@
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
   var motionOK = function () { try { return !matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return true; } };
+  // With the live site shell, the site's own app.js already runs the theme button, the sound button and the
+  // copy buttons; doing it here as well flipped the theme twice per click and un-muted the mute. Only the
+  // fallback page (site unreachable) needs them from this file.
+  var SITE = !!document.querySelector('script[src^="/app.js"]');
 
   /* ---- theme: auto → light → dark, stored as 'theme' only when pinned ---- */
   (function theme() {
     var root = document.documentElement, button = $('theme-toggle');
-    if (!button) return;
+    if (!button || SITE) return;
     var label = button.querySelector('[data-theme-label]');
     var stored = function () { try { var s = localStorage.getItem('theme'); return s === 'light' || s === 'dark' ? s : 'auto'; } catch (e) { return 'auto'; } };
     var apply = function (mode) {
@@ -70,6 +74,7 @@
     btn.setAttribute('title', t); btn.setAttribute('aria-label', t);
     if (btn.hasAttribute('data-compact')) btn.innerHTML = on ? SPK_ON : SPK_OFF; else btn.textContent = on ? 'Sound on' : 'Sound off';
   }
+  if (SITE) { toggles = []; window.addEventListener('storage', function () { try { on = localStorage.getItem(KEY) !== 'off'; } catch (e) {} }); document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('[data-sound-toggle]')) setTimeout(function () { try { on = localStorage.getItem(KEY) !== 'off'; } catch (er) {} }, 0); }, true); }
   Array.prototype.forEach.call(toggles, function (b) {
     sync(b);
     b.addEventListener('click', function () {
@@ -79,12 +84,20 @@
     });
   });
 
-  /* ---- copy buttons ---- */
+  /* ---- copy buttons: the site's app.js copies on the live shell; here only for the fallback page.
+         Either way a few gold bubbles rise from the button and the bottle scene plays. ---- */
   document.addEventListener('click', function (e) {
-    var b = e.target.closest && e.target.closest('.pour-copy');
+    var b = e.target.closest && e.target.closest('.copy[data-copy], .pour-copy');
     if (!b) return;
+    if (motionOK()) {
+      var r = b.getBoundingClientRect(), cols = ['--c-gold', '--c-amber', '--c-teal', '--c-cyan', '--c-lime'];
+      for (var k = 0; k < 7; k++) { var u = document.createElement('i'); u.className = 'pour-bubble'; u.style.cssText = 'left:' + (r.left + r.width / 2 + (Math.random() * 24 - 12)) + 'px;top:' + r.top + 'px;background:var(' + cols[k % cols.length] + ');--dx:' + (Math.random() * 50 - 25) + 'px;animation-delay:' + (k * 45) + 'ms'; document.body.appendChild(u); setTimeout(function (n) { return function () { n.remove(); }; }(u), 1300); }
+      try { if (window.VFX) window.VFX.play('bottle', b, { quiet: true }); } catch (er) {}
+    }
+    if (SITE) { sfx('pour'); return; }
     var text = b.getAttribute('data-copy') || '';
-    var ok = function () { b.textContent = 'Copied'; b.classList.add('done'); sfx('copy'); setTimeout(function () { b.textContent = 'Copy'; b.classList.remove('done'); }, 1400); };
+    var label = b.textContent;
+    var ok = function () { b.textContent = 'copied'; b.classList.add('done'); sfx('copy'); setTimeout(function () { b.textContent = label; b.classList.remove('done'); }, 1400); };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, ok);
     else { var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (err) {} ta.remove(); ok(); }
   });
@@ -92,7 +105,7 @@
   /* ---- ripples on buttons and cards ---- */
   window.addEventListener('pointerdown', function (e) {
     if (!motionOK() || e.button !== 0) return;
-    var b = e.target.closest && e.target.closest('.pour-btn, .pour-copy, .pour-search button, .pour-app, .pour-card');
+    var b = e.target.closest && e.target.closest('.pour-btn, .pour-search button, .pour-app, .pour-card, .pour-grid article');
     if (!b) return;
     var r = b.getBoundingClientRect(), d = Math.max(r.width, r.height) * 1.6, s = document.createElement('span');
     s.className = 'pour-ripple';
@@ -101,6 +114,8 @@
     b.style.overflow = 'hidden'; b.appendChild(s); setTimeout(function () { s.remove(); }, 520);
     sfx('click');
   }, { passive: true });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.pour-platforms span'), function (x, i) { x.style.setProperty('--n', i); });
 
   /* ---- typed terminal demo ---- */
   var demo = document.querySelector('[data-demo]');
