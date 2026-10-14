@@ -1,0 +1,25 @@
+# Pour site — served at https://ipconfig.co.network/pour by its own Worker.
+# Routes run ahead of the custom-domain Worker, so the rest of the site is untouched.
+name = "pour"
+main = "src/worker.js"
+compatibility_date = "2025-09-01"
+workers_dev = false
+
+routes = [
+  { pattern = "ipconfig.co.network/pour", zone_name = "ipconfig.co.network" },
+  { pattern = "ipconfig.co.network/pour/*", zone_name = "ipconfig.co.network" },
+]
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+
+[[r2_buckets]]
+binding = "REGISTRY"
+bucket_name = "pour-registry"
+
+[vars]
+SITE_HOST = "ipconfig.co.network"
+GITHUB_OWNER = "JKS-sys"
+CF_ANALYTICS_TOKEN = "61945bd772044cf88341dd69c64cc920"

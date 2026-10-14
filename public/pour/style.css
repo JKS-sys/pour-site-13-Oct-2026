@@ -1,0 +1,133 @@
+/* Fallback tokens (the site's own stylesheet defines the real ones at :root and wins). */
+html { --bg:#f5f5f6; --surface:#ffffff; --surface-2:#efeeeb; --text:#1c1b17; --muted:#5b564c; --line:#dddbd5; --accent:#8e6115; --accent-soft:#f6ead2; --on-accent:#ffffff; --link:#7a4e08; --warm:#a8500a; --good:#7d5a0c; --bad:#b3261e; --c-blue:#1a5bc6; --gap:clamp(1.1rem,4vw,2.2rem); --radius:6px;
+  --mono:'Plex Mono',ui-monospace,'SF Mono','Cascadia Mono',Menlo,Consolas,monospace; --sans:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  --shadow:0 1px 2px rgba(28,27,23,.06),0 8px 24px rgba(28,27,23,.05); }
+html[data-theme="dark"] { --bg:#1c1b17; --surface:#24221d; --surface-2:#2c2a24; --text:#f2eee4; --muted:#b4ad9d; --line:#3b382f; --accent:#d9a441; --accent-soft:#3a2f18; --on-accent:#1c1b17; --link:#e8bd66; --warm:#f0a860; --good:#d9a441; --bad:#ff8f85; --c-blue:#6cb6ff;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 10px 30px rgba(0,0,0,.35); }
+body.pour-body { font-family: var(--sans); margin: 0; }
+/* Header fallback: the shared stylesheet styles .bar; this keeps it tidy if it is missing. */
+.pour-body .bar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; padding: .7rem var(--gap); border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: 0; z-index: 10; }
+.pour-body .bar .mark { font-family: 'Libre Baskerville', Georgia, serif; font-weight: 700; color: var(--accent); text-decoration: none; }
+.pour-body .bar .tools { display: flex; gap: .9rem; flex-wrap: wrap; margin-right: auto; }
+.pour-body .bar .tools a { color: var(--text); text-decoration: none; font-size: .95rem; }
+.pour-body .bar .tools a[aria-current] { color: var(--accent); }
+.pour-body .head-tools { display: flex; gap: .5rem; align-items: center; }
+.pour-body .sound-btn, .pour-body .theme-toggle { font: inherit; font-size: .8rem; background: var(--surface-2); color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: .3rem .7rem; cursor: pointer; display: inline-flex; align-items: center; gap: .4rem; }
+.pour-body .ui-ico { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.pour-body .theme-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); display: inline-block; }
+.pour-body .skip { position: absolute; left: -999px; }
+.pour-body .skip:focus { left: 8px; top: 8px; background: var(--accent); color: var(--on-accent); padding: .4rem .6rem; z-index: 20; }
+/* Pour — page styles. Uses the site's colour tokens (gold on warm neutrals,
+   no pink) and fonts; everything here is scoped to .pour-* so the shared
+   header keeps its own look. */
+.pour-body { background: var(--bg, #f5f5f6); color: var(--text, #1c1b17); }
+.pour-main { max-width: 980px; margin: 0 auto; padding: 0 var(--gap, 1.5rem) 3rem; }
+.pour-main h1, .pour-main h2, .pour-main h3 { font-family: 'Libre Baskerville', Georgia, serif; line-height: 1.15; }
+.pour-main h2 { font-size: 1.7rem; margin: 0 0 .6rem; color: var(--accent, #8e6115); }
+.pour-main h3 { font-size: 1.1rem; margin: 0 0 .35rem; }
+.pour-main p, .pour-main li { line-height: 1.6; }
+.pour-main a { color: var(--link, #7a4e08); }
+.pour-main code { font-family: var(--mono, ui-monospace, Menlo, monospace); font-size: .92em; background: var(--surface-2, #efeeeb); padding: .1em .35em; border-radius: 4px; }
+.pour-main pre code { background: none; padding: 0; }
+.pour-sheet { background: var(--surface, #fff); border: 1px solid var(--line, #dddbd5); border-radius: 12px; padding: 1.4rem 1.6rem; margin: 1.3rem 0; box-shadow: var(--shadow); animation: pour-rise .5s ease both; }
+.pour-sheet:nth-of-type(2) { animation-delay: .05s } .pour-sheet:nth-of-type(3) { animation-delay: .1s } .pour-sheet:nth-of-type(4) { animation-delay: .15s }
+@keyframes pour-rise { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+
+/* hero */
+.pour-hero { text-align: center; padding: 2.6rem 0 1rem; }
+.pour-hero-small { padding: 1.6rem 0 .6rem; }
+.pour-hero h1 { font-size: clamp(2.6rem, 7vw, 4.2rem); margin: .3rem 0 .2rem; letter-spacing: -.01em; color: var(--accent, #8e6115); }
+.pour-hero h1 small { font-size: .4em; color: var(--muted); font-family: var(--mono); font-weight: 400; }
+.pour-tag { font-size: 1.25rem; max-width: 42rem; margin: 0 auto .6rem; font-family: 'Libre Baskerville', Georgia, serif; }
+.pour-sub { max-width: 46rem; margin: 0 auto; color: var(--muted, #5b564c); }
+.pour-platforms { display: flex; flex-wrap: wrap; justify-content: center; gap: .4rem; margin: 1rem 0 .4rem; }
+.pour-platforms span { font-size: .78rem; font-family: var(--mono); border: 1px solid var(--line); border-radius: 999px; padding: .15rem .6rem; color: var(--muted); background: var(--surface); }
+
+/* logo animation: the bottle tips, the stream flows, the glass fills */
+.pour-logo { display: block; margin: 0 auto; color: var(--accent, #8e6115); overflow: visible; }
+.pour-logo .pour-bottle { transform-origin: 62px 28px; animation: pour-tip 3.2s ease-in-out infinite; }
+.pour-logo .pour-stream { stroke-dasharray: 40; stroke-dashoffset: 40; animation: pour-flow 3.2s ease-in-out infinite; }
+.pour-logo .pour-liquid { transform: translateY(30px); animation: pour-fill 3.2s ease-in-out infinite; }
+@keyframes pour-tip { 0%, 15% { transform: rotate(0) } 30%, 75% { transform: rotate(-38deg) } 90%, 100% { transform: rotate(0) } }
+@keyframes pour-flow { 0%, 28% { stroke-dashoffset: 40; opacity: 0 } 34% { opacity: 1 } 40%, 70% { stroke-dashoffset: 0; opacity: 1 } 80%, 100% { stroke-dashoffset: -40; opacity: 0 } }
+@keyframes pour-fill { 0%, 30% { transform: translateY(30px) } 75%, 88% { transform: translateY(0) } 100% { transform: translateY(30px) } }
+@media (prefers-reduced-motion: reduce) { .pour-logo * { animation: none !important } .pour-logo .pour-liquid { transform: translateY(8px) } .pour-sheet { animation: none } }
+
+/* commands */
+.pour-cmd { position: relative; display: flex; align-items: center; gap: .6rem; background: #1c1b17; color: #f2eee4; border-radius: 10px; padding: .75rem 1rem; margin: .8rem 0; border: 1px solid #3b382f; overflow: hidden; }
+.pour-cmd pre { margin: 0; flex: 1; overflow-x: auto; font-family: var(--mono); font-size: .95rem; }
+.pour-cmd code { background: none; color: inherit; padding: 0; }
+.pour-prompt { color: #d9a441; user-select: none; }
+.pour-copy { flex-shrink: 0; font: inherit; font-size: .8rem; background: #d9a441; color: #1c1b17; border: 0; border-radius: 6px; padding: .35rem .7rem; cursor: pointer; position: relative; }
+.pour-copy:hover { background: #e8bd66 } .pour-copy.done { background: #62d26f }
+.pour-out { background: var(--surface-2, #efeeeb); border-radius: 10px; padding: .8rem 1rem; overflow-x: auto; font-size: .85rem; line-height: 1.5; margin: .6rem 0 1rem; }
+
+/* fake terminal with a typed demo */
+.pour-term { background: #1c1b17; color: #f2eee4; border-radius: 12px; border: 1px solid #3b382f; margin: 1.2rem 0 .4rem; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+.pour-term-bar { display: flex; align-items: center; gap: .4rem; padding: .5rem .8rem; background: #24221d; border-bottom: 1px solid #3b382f; }
+.pour-term-bar span { width: 11px; height: 11px; border-radius: 50%; background: #3b382f; }
+.pour-term-bar span:nth-child(1) { background: #ff6a3d } .pour-term-bar span:nth-child(2) { background: #d9a441 } .pour-term-bar span:nth-child(3) { background: #62d26f }
+.pour-term-bar em { margin-left: auto; font-style: normal; font-size: .75rem; color: #b4ad9d; font-family: var(--mono); }
+.pour-term-body { margin: 0; padding: .9rem 1rem; min-height: 11.5rem; font-family: var(--mono); font-size: .86rem; line-height: 1.5; white-space: pre-wrap; }
+.pour-term-body .c-blue { color: #6cb6ff } .pour-term-body .c-green { color: #62d26f } .pour-term-body .c-gold { color: #d9a441 } .pour-term-body .c-dim { color: #b4ad9d }
+.pour-cursor { display: inline-block; width: .55em; height: 1.05em; background: #d9a441; vertical-align: text-bottom; animation: pour-blink 1s steps(2) infinite; }
+@keyframes pour-blink { to { opacity: 0 } }
+
+/* grids, cards, tables */
+.pour-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: .9rem; }
+.pour-grid article { background: var(--surface-2, #efeeeb); border-radius: 10px; padding: .9rem 1rem; }
+.pour-grid article p { margin: 0; font-size: .95rem; color: var(--muted); }
+.pour-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 1rem; margin-bottom: 1.4rem; }
+.pour-card { background: var(--surface-2); border-radius: 12px; padding: 1rem 1.1rem; border: 1px solid var(--line); transition: transform .2s, box-shadow .2s; }
+.pour-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.pour-card h3 small { font-family: var(--mono); font-weight: 400; color: var(--muted); font-size: .8rem; }
+.pour-card-soon { opacity: .75; }
+.pour-small, .pour-note { font-size: .9rem; color: var(--muted); }
+.pour-warn { color: var(--warm, #a8500a); }
+.pour-apps-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: .7rem; margin: 1rem 0; }
+.pour-app { display: flex; flex-direction: column; gap: .25rem; text-decoration: none; color: inherit; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: .8rem .9rem; transition: transform .2s, border-color .2s; }
+.pour-app:hover { transform: translateY(-2px); border-color: var(--accent); }
+.pour-app strong { color: var(--accent); font-family: 'Libre Baskerville', Georgia, serif; }
+.pour-app span { font-size: .85rem; color: var(--muted); }
+.pour-app code { font-size: .78rem; margin-top: .3rem; }
+.pour-table { width: 100%; border-collapse: collapse; font-size: .93rem; }
+.pour-table th, .pour-table td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+.pour-table th { color: var(--muted); font-weight: 600; }
+.pour-cmds td:first-child { white-space: nowrap; }
+.pour-list { padding-left: 1.2rem; }
+.pour-list li { margin: .3rem 0; }
+
+/* search */
+.pour-search { display: flex; gap: .5rem; max-width: 36rem; margin: 1rem auto; }
+.pour-search input { flex: 1; font: inherit; font-size: 1.05rem; padding: .7rem .9rem; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); }
+.pour-search input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pour-search button, .pour-btn { font: inherit; font-weight: 600; padding: .7rem 1.1rem; border-radius: 10px; border: 0; background: var(--accent, #8e6115); color: var(--on-accent, #fff); cursor: pointer; text-decoration: none; display: inline-block; }
+.pour-btn-ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.pour-results { list-style: none; padding: 0; margin: 0; }
+.pour-result { padding: .7rem 0; border-bottom: 1px solid var(--line); }
+.pour-result p { margin: .2rem 0 0; color: var(--muted); font-size: .95rem; }
+.pour-result small { font-family: var(--mono); color: var(--muted); }
+.pour-kind { font-size: .7rem; font-family: var(--mono); border-radius: 999px; padding: .1rem .5rem; vertical-align: middle; }
+.pour-kind-formula { background: rgba(108,182,255,.18); color: var(--c-blue, #1a5bc6) }
+.pour-kind-cask { background: rgba(217,164,65,.22); color: var(--accent) }
+.pour-kind-app { background: rgba(98,210,111,.2); color: var(--good, #14703a) }
+
+/* footer */
+.pour-foot { max-width: 980px; margin: 0 auto; padding: 1.5rem var(--gap, 1.5rem) 3rem; color: var(--muted); font-size: .9rem; text-align: center; border-top: 1px solid var(--line); }
+.pour-foot a { color: var(--link); }
+.pour-foot-small { font-size: .8rem; }
+.pour-sponsor { text-align: center; }
+
+/* ripple */
+.pour-ripple { position: absolute; border-radius: 50%; background: rgba(255,255,255,.35); transform: scale(0); animation: pour-ripple .5s ease-out forwards; pointer-events: none; }
+@keyframes pour-ripple { to { transform: scale(1); opacity: 0 } }
+
+@media (max-width: 640px) {
+  .pour-main { padding: 0 16px 2rem; }
+  .pour-sheet { padding: 1rem 1rem; border-radius: 10px; }
+  .pour-hero h1 { font-size: 2.6rem; }
+  .pour-tag { font-size: 1.05rem; }
+  .pour-cmd { flex-wrap: wrap; }
+  .pour-table { display: block; overflow-x: auto; }
+  .pour-term-body { min-height: 9rem; font-size: .78rem; }
+}
