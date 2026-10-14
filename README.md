@@ -10,6 +10,9 @@
 <p align="center"><strong>The Pour website, mirror and release feed — <a href="https://ipconfig.co.network/pour">ipconfig.co.network/pour</a>.</strong><br>
 One Cloudflare Worker on routes <code>ipconfig.co.network/pour*</code>, ahead of the main site's Worker, so nothing else changes.</p>
 
+
+> ⭐ **If Pour saves you time, star this repository** — stars are how other people find it.
+
 ## See it move
 
 ![The Pour site](docs/demo-site.webp)
