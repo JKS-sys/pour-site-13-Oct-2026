@@ -166,7 +166,7 @@ function theme(request) {
 }
 
 // Pour's machine endpoints and its own static files are always answered here.
-const POUR_ONLY = /^\/pour\/(install(\.sh)?|releases\/.*|dl\/.*|registry\/.*|apps\/index\.json|api\/.*|sitemap\.xml|robots\.txt|[\w.-]+\.(css|js|svg|png|webp|ico|json|txt))$/;
+const POUR_ONLY = /^\/pour\/((un)?install(\.sh)?|releases\/.*|dl\/.*|registry\/.*|apps\/index\.json|api\/.*|sitemap\.xml|robots\.txt|[\w.-]+\.(css|js|svg|png|webp|ico|json|txt))$/;
 
 export default {
   // Web pages: the main ipconfig.co.network site answers first (service
@@ -210,6 +210,9 @@ async function pourFetch(request, env, ctx) {
     const rest = path.slice("/pour/".length);
 
     // ---- machine endpoints
+    if (rest === "uninstall" || rest === "uninstall.sh") {
+      return (await fromR2(env, "releases/uninstall.sh", request, "text/plain; charset=utf-8", 600)) || Response.redirect(`${RAW}/pour${SFX}/main/uninstall.sh`, 302);
+    }
     if (rest === "install" || rest === "install.sh") {
       return (await fromR2(env, "releases/install.sh", request, "text/plain; charset=utf-8", 600)) || Response.redirect(`${RAW}/pour${SFX}/main/install.sh`, 302);
     }
