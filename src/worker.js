@@ -11,6 +11,8 @@ const GH = "https://github.com/JKS-sys";
 const RAW = "https://raw.githubusercontent.com/JKS-sys";
 const HOMEBREW_API = "https://formulae.brew.sh/api";
 const UA = "pour-site (+https://ipconfig.co.network/pour)";
+// Every repository carries its date suffix (github.com/JKS-sys/pour-13-Oct-2026); the bare names 404.
+const SFX = "-13-Oct-2026";
 
 const SECURITY = {
   "x-content-type-options": "nosniff",
@@ -71,6 +73,40 @@ async function siteShell(env) {
   return value;
 }
 
+
+/* The apps registry: pour-apps (R2, else GitHub) merged with the dashboard's apps (service
+   binding SITE → GET /api/v1/apps, which lists only the apps switched on). An app the
+   dashboard knows but pour-apps does not becomes a cask that follows its release feed
+   /updates/<app>/latest.json, the way every app made with the ship stack publishes. */
+let appsMemo = { until: 0, value: null };
+export async function appsIndex(env) {
+  if (appsMemo.until > Date.now()) return appsMemo.value;
+  const host = env.SITE_HOST || "ipconfig.co.network";
+  const base = (await cachedJson(env, "apps/index.json", `${RAW}/pour-apps${SFX}/main/index.json`)) || { meta: { name: "pour-apps" }, formulae: [], casks: [] };
+  let dash = [];
+  try {
+    const r = env.SITE ? await env.SITE.fetch(new Request(`https://${host}/api/v1/apps`, { headers: { accept: "application/json" } })) : null;
+    if (r && r.ok) dash = (await r.json()).apps || [];
+  } catch {}
+  const have = new Set((base.casks || []).map((c) => c.token));
+  const added = dash.filter((a) => a && /^[a-z][a-z0-9-]{1,23}$/.test(a.id) && !have.has(a.id)).map((a) => dashboardCask(a, host));
+  const value = { ...base, meta: { ...(base.meta || {}), apps: (base.casks || []).length + added.length, from_dashboard: added.length }, casks: [...(base.casks || []), ...added] };
+  appsMemo = { until: Date.now() + 300_000, value };
+  return value;
+}
+export function dashboardCask(a, host = "ipconfig.co.network") {
+  const name = String(a.name || a.id);
+  const feed = /latest\.json$/.test(a.download_url || "") ? a.download_url : `https://${host}/updates/${a.id}/latest.json`;
+  return {
+    token: a.id, full_token: `jks-sys/pour-apps/${a.id}`, tap: "jks-sys/pour-apps", name: [name],
+    desc: a.line ? `${name} — ${a.line}` : name, homepage: a.download_url && !/latest\.json$/.test(a.download_url) ? a.download_url : `https://${host}/${a.id}`,
+    version: a.latest_version || "latest", sha256: "no_check", url: "", container: { type: "tar" },
+    artifacts: [{ app: [`${name}.app`] }], auto_updates: true,
+    caveats: `${name} was registered on the dashboard; Pour installs the newest build from its release feed.`,
+    pour: { livecheck: feed, clear_quarantine: true, installers: [], status: "registered", source: "dashboard" },
+  };
+}
+
 /** Small JSON documents with a per-isolate memory cache. */
 const memo = new Map();
 async function cachedJson(env, key, fallbackUrl, ttlMs = 300_000) {
@@ -100,9 +136,9 @@ async function homebrew(kind, name) {
 }
 
 async function stats(env) {
-  const index = await cachedJson(env, "index.json", `${GH}/pour-registry/releases/latest/download/index.json`);
-  const release = await cachedJson(env, "releases/latest.json", `${RAW}/pour/main/VERSION`.replace("VERSION", "dist/latest.json"), 600_000);
-  const apps = await cachedJson(env, "apps/index.json", `${RAW}/pour-apps/main/index.json`);
+  const index = await cachedJson(env, "index.json", `${GH}/pour-registry${SFX}/releases/latest/download/index.json`);
+  const release = await cachedJson(env, "releases/latest.json", `${RAW}/pour${SFX}/main/dist/latest.json`, 600_000);
+  const apps = await appsIndex(env);
   return {
     formulae: index?.formulae ?? 8658,
     casks: index?.casks ?? 7783,
@@ -175,7 +211,7 @@ async function pourFetch(request, env, ctx) {
 
     // ---- machine endpoints
     if (rest === "install" || rest === "install.sh") {
-      return (await fromR2(env, "releases/install.sh", request, "text/plain; charset=utf-8", 600)) || Response.redirect(`${RAW}/pour/main/install.sh`, 302);
+      return (await fromR2(env, "releases/install.sh", request, "text/plain; charset=utf-8", 600)) || Response.redirect(`${RAW}/pour${SFX}/main/install.sh`, 302);
     }
     if (rest === "releases/latest.json") {
       const r = await fromR2(env, "releases/latest.json", request, "application/json; charset=utf-8", 300);
@@ -193,16 +229,31 @@ async function pourFetch(request, env, ctx) {
       if (!m) return notFoundResponse(request, env);
       const [, ver, asset] = m;
       const key = ver ? `releases/${ver}/${asset}` : `releases/${asset}`;
-      const gh = ver ? `${GH}/pour/releases/download/${ver}/${asset}` : `${GH}/pour/releases/latest/download/${asset}`;
+      const gh = ver ? `${GH}/pour${SFX}/releases/download/${ver}/${asset}` : `${GH}/pour${SFX}/releases/latest/download/${asset}`;
       return (await fromR2(env, key, request, "application/octet-stream", ver ? 86400 : 600)) || Response.redirect(gh, 302);
     }
     if (rest.startsWith("registry/")) {
       const file = rest.slice(9).replace(/[^A-Za-z0-9._-]/g, "");
       const ct = file.endsWith(".gz") ? "application/gzip" : "application/json; charset=utf-8";
-      return (await fromR2(env, file, request, ct, 300)) || Response.redirect(`${GH}/pour-registry/releases/latest/download/${file}`, 302);
+      return (await fromR2(env, file, request, ct, 300)) || Response.redirect(`${GH}/pour-registry${SFX}/releases/latest/download/${file}`, 302);
     }
     if (rest === "apps/index.json") {
-      return (await fromR2(env, "apps/index.json", request, "application/json; charset=utf-8", 300)) || Response.redirect(`${RAW}/pour-apps/main/index.json`, 302);
+      // pour-apps plus every app the dashboard has switched on, so a new app is
+      // `pour install --cask <app>` the moment it registers (pour update picks it up).
+      const idx = await appsIndex(env);
+      if (!idx) return Response.redirect(`${RAW}/pour-apps${SFX}/main/index.json`, 302);
+      return json(idx, 200, 300);
+    }
+    if (rest === "api/apps") {
+      const idx = await appsIndex(env);
+      return json({ ok: true, apps: (idx?.casks || []).map((c) => ({ token: c.token, name: c.name?.[0] || c.token, desc: c.desc, version: c.version, homepage: c.homepage, source: c.pour?.source || "pour-apps", install: `pour install --cask ${c.token}` })) }, 200, 120);
+    }
+    if (rest === "api/apps/register" && request.method === "POST") {
+      // An app introduces itself; the dashboard keeps it pending until the owner switches it on.
+      if (!env.SITE) return json({ ok: false, error: "no_dashboard" }, 503, 0);
+      const body = await request.text();
+      const r = await env.SITE.fetch(new Request(`https://${env.SITE_HOST || "ipconfig.co.network"}/api/v1/apps/register`, { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": request.headers.get("cf-connecting-ip") || "" }, body }));
+      return new Response(r.body, { status: r.status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "access-control-allow-origin": "*" } });
     }
     if (rest === "api/stats") {
       const s = await stats(env);
@@ -278,11 +329,11 @@ async function loadSearch(env) {
   } catch {}
   if (!data) {
     try {
-      const r = await fetch(`${GH}/pour-registry/releases/latest/download/search.json`, { headers: { "user-agent": UA }, cf: { cacheTtl: 600, cacheEverything: true } });
+      const r = await fetch(`${GH}/pour-registry${SFX}/releases/latest/download/search.json`, { headers: { "user-agent": UA }, cf: { cacheTtl: 600, cacheEverything: true } });
       if (r.ok) data = await r.json();
     } catch {}
   }
-  const apps = await cachedJson(env, "apps/index.json", `${RAW}/pour-apps/main/index.json`);
+  const apps = await appsIndex(env);
   const rows = (data?.rows || []).map((r) => ({ name: r[0], kind: r[1] === 0 ? "formula" : "cask", desc: r[2] || "", version: r[3] || "", homepage: r[4] || "", source: "homebrew" }));
   for (const c of apps?.casks || []) rows.push({ name: c.token, kind: "cask", desc: c.desc, version: c.version, homepage: c.homepage, source: "jks-sys/pour-apps" });
   const result = { until: Date.now() + (rows.length ? 600_000 : 15_000), rows, meta: { formulae: data?.formulae, casks: data?.casks, generated_at: data?.generated_at } };
