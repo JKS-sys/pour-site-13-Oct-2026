@@ -43,6 +43,31 @@ async function fromR2(env, key, request, contentType, maxAge = 300) {
   return new Response(obj.body, { status: 200, headers });
 }
 
+/** The live site's page shell (header, footer, stylesheet, scripts), cached. */
+let shellMemo = { until: 0, value: null };
+async function siteShell(env) {
+  if (shellMemo.until > Date.now()) return shellMemo.value;
+  let value = null;
+  try {
+    const host = env.SITE_HOST || "ipconfig.co.network";
+    const r = await fetch(`https://${host}/about`, { headers: { "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36", accept: "text/html" }, cf: { cacheTtl: 600 } });
+    if (r.ok) {
+      const html = await r.text();
+      const h0 = html.indexOf('<header class="bar"'), h1 = html.indexOf("<main");
+      const f0 = html.indexOf("<footer"), f1 = html.indexOf("</footer>");
+      const head = (html.match(/<link rel="stylesheet"[^>]*>/g) || []).filter((t) => !t.includes("/pour/")).join("\n");
+      const scripts = (html.match(/<script[^>]*src="\/[^"]+"[^>]*><\/script>/g) || []).filter((t) => !t.includes("/pour/")).join("\n");
+      if (h0 > 0 && h1 > h0 && f0 > h1 && f1 > f0 && head) {
+        // the shell came from /about: move the "current page" mark onto the Pour link
+        const header = html.slice(h0, h1).replace(/ aria-current="page"/g, "").replace(/<a ([^>]*href="\/pour"[^>]*)>/, '<a $1 aria-current="page">');
+        value = { head, header, footer: html.slice(f0, f1 + 9), scripts };
+      }
+    }
+  } catch {}
+  shellMemo = { until: Date.now() + (value ? 600_000 : 60_000), value };
+  return value;
+}
+
 /** Small JSON documents with a per-isolate memory cache. */
 const memo = new Map();
 async function cachedJson(env, key, fallbackUrl, ttlMs = 300_000) {
@@ -107,7 +132,7 @@ export default {
     let path = url.pathname.replace(/\/+$/, "") || "/";
     if (path === "/pour" || path === "/") {
       const s = await stats(env);
-      return html(home({ theme: theme(request), stats: s, env }));
+      return html(home({ theme: theme(request), stats: s, env, shell: await siteShell(env) }));
     }
     if (!path.startsWith("/pour/")) return notFoundResponse(request, env);
     const rest = path.slice("/pour/".length);
@@ -163,17 +188,17 @@ export default {
     // ---- pages
     if (rest === "apps") {
       const s = await stats(env);
-      return html(appsPage({ theme: theme(request), stats: s, env }));
+      return html(appsPage({ theme: theme(request), stats: s, env, shell: await siteShell(env) }));
     }
     if (rest === "docs") {
       const s = await stats(env);
-      return html(docsPage({ theme: theme(request), stats: s, env }));
+      return html(docsPage({ theme: theme(request), stats: s, env, shell: await siteShell(env) }));
     }
     if (rest === "search") {
       const q = (url.searchParams.get("q") || "").trim();
       const s = await stats(env);
       const results = q ? await search(env, q.toLowerCase(), url.searchParams.get("kind"), 100) : { rows: [] };
-      return html(searchPage({ theme: theme(request), stats: s, env, q, results }));
+      return html(searchPage({ theme: theme(request), stats: s, env, shell: await siteShell(env), q, results }));
     }
     if (rest.startsWith("p/")) {
       const name = decodeURIComponent(rest.slice(2)).replace(/[^A-Za-z0-9@+._-]/g, "");
@@ -184,7 +209,7 @@ export default {
         [formula, cask] = await Promise.all([homebrew("formula", name), homebrew("cask", name)]);
       }
       if (!app && !formula && !cask) return notFoundResponse(request, env, name);
-      return html(packagePage({ theme: theme(request), stats: s, env, name, app, formula, cask }), 200, { "cache-control": "public, max-age=600, s-maxage=1800" });
+      return html(packagePage({ theme: theme(request), stats: s, env, shell: await siteShell(env), name, app, formula, cask }), 200, { "cache-control": "public, max-age=600, s-maxage=1800" });
     }
 
     // ---- static assets (public/pour/…)
@@ -203,7 +228,7 @@ export default {
 
 async function notFoundResponse(request, env, name) {
   const s = await stats(env);
-  return html(notFound({ theme: theme(request), stats: s, env, name }), 404);
+  return html(notFound({ theme: theme(request), stats: s, env, shell: await siteShell(env), name }), 404);
 }
 
 /** Search the compact list the registry publishes (search.json). */

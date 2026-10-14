@@ -6,8 +6,12 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const n = (x) => Number(x || 0).toLocaleString("en-US");
 const BY = "Jagadeesh Kumar S";
 
-export function layout({ title, description, path, theme, body, stats, env, jsonld, noindex }) {
+export function layout({ title, description, path, theme, body, stats, env, jsonld, noindex, shell }) {
   const host = env?.SITE_HOST || "ipconfig.co.network";
+  // The live site's own header, footer, stylesheet and scripts (fetched by the
+  // Worker and cached) so every Pour page looks exactly like the rest of the
+  // site, even after the site changes. The built-in shell is the fallback.
+  const live = shell && shell.header && shell.footer ? shell : null;
   const canonical = `https://${host}/pour${path || ""}`;
   return `<!doctype html>
 <html lang="en" data-theme="${theme}" data-server-theme="${theme}">
@@ -27,18 +31,19 @@ ${noindex ? '<meta name="robots" content="noindex">' : ""}
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#d9a441">
 <link rel="icon" href="/pour/pour.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/styles.css">
+${live ? live.head : '<link rel="stylesheet" href="/styles.css">'}
 <link rel="stylesheet" href="/pour/style.css">
 <script type="application/ld+json">${JSON.stringify(jsonld || softwareJsonLd(stats, host))}</script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "${env?.CF_ANALYTICS_TOKEN || ""}"}'></script>
 </head>
-<body class="pour-body">
+<body class="pour-body"${live ? "" : ' data-shell="fallback"'}>
 <a class="skip" href="#main">Skip to content</a>
-${header(path)}
+${live ? live.header : header(path)}
 <main id="main" class="pour-main">
 ${body}
 </main>
-${footer(stats)}
+${live ? live.footer : footer(stats)}
+${live ? live.scripts : ""}
 <script src="/pour/pour.js" defer></script>
 </body>
 </html>`;
@@ -103,7 +108,7 @@ export function logoSvg(size = 96) {
 </svg>`;
 }
 
-export function home({ theme, stats, env }) {
+export function home({ theme, stats, env , shell }) {
   const total = (stats.formulae || 0) + (stats.casks || 0);
   const body = `
 <section class="pour-hero">
@@ -202,10 +207,10 @@ export function home({ theme, stats, env }) {
   <p>Pour is made by one creator. If it saves you time, <a href="/sponsor">sponsor the work</a> — it pays for the hosting that keeps the index fresh every four hours.</p>
   <p><a class="pour-btn" href="https://razorpay.me/@NSBJKS" target="_blank" rel="noopener">Sponsor via Razorpay</a> <a class="pour-btn pour-btn-ghost" href="https://github.com/JKS-sys/pour-13-Oct-2026" target="_blank" rel="noopener">Star on GitHub</a></p>
 </section>`;
-  return layout({ title: "Pour — the Homebrew-compatible package manager that installs in milliseconds", description: `Pour installs every Homebrew formula and cask from a 3 MB Rust binary: ${n(total)} packages, parallel downloads, a content-addressed store, warm installs in milliseconds. macOS, Linux, WSL, ChromeOS, Windows, FreeBSD, Haiku, iOS. By ${BY}.`, path: "", theme, body, stats, env });
+  return layout({ shell, title: "Pour — the Homebrew-compatible package manager that installs in milliseconds", description: `Pour installs every Homebrew formula and cask from a 3 MB Rust binary: ${n(total)} packages, parallel downloads, a content-addressed store, warm installs in milliseconds. macOS, Linux, WSL, ChromeOS, Windows, FreeBSD, Haiku, iOS. By ${BY}.`, path: "", theme, body, stats, env });
 }
 
-export function appsPage({ theme, stats, env }) {
+export function appsPage({ theme, stats, env , shell }) {
   const apps = stats.appsAll || [];
   const rows = apps.map((c) => {
     const others = (c.pour?.installers || []).map((i) => i.platform).join(", ");
@@ -228,19 +233,19 @@ export function appsPage({ theme, stats, env }) {
 </ul>
 ${copyBlock("pour tap list", "tap")}
 <p>pour-apps is a normal Pour registry (a JSON file). Anyone can publish their own: <code>pour tap add you/apps https://…/index.json</code>.</p></section>`;
-  return layout({ title: "Apps — Pour", description: `Install ${BY}'s apps — Peek, Voxo, Nib, Keel, Swep, Grab, Dial, Mend, Twig, Cine, Veil — with one Pour command on macOS, Windows, Linux and FreeBSD.`, path: "/apps", theme, body, stats, env });
+  return layout({ shell, title: "Apps — Pour", description: `Install ${BY}'s apps — Peek, Voxo, Nib, Keel, Swep, Grab, Dial, Mend, Twig, Cine, Veil — with one Pour command on macOS, Windows, Linux and FreeBSD.`, path: "/apps", theme, body, stats, env });
 }
 
-export function searchPage({ theme, stats, env, q, results }) {
+export function searchPage({ theme, stats, env, q, results , shell }) {
   const total = (stats.formulae || 0) + (stats.casks || 0);
   const rows = (results.rows || []).map((r) => `<li class="pour-result"><a href="/pour/p/${esc(r.name)}"><strong>${esc(r.name)}</strong></a> <span class="pour-kind pour-kind-${r.kind}">${r.kind}</span>${r.source !== "homebrew" ? ` <span class="pour-kind pour-kind-app">app</span>` : ""} <small>${esc(r.version)}</small><p>${esc(r.desc)}</p></li>`).join("");
   const body = `<section class="pour-hero pour-hero-small">${logoSvg(72)}<h1>Packages</h1><p class="pour-tag">${n(total)} formulae and casks, the same names Homebrew uses.</p>
 <form class="pour-search" action="/pour/search" method="get" role="search"><input type="search" name="q" value="${esc(q)}" placeholder="Search ${n(total)} packages…" aria-label="Search packages" autofocus autocomplete="off"><button type="submit">Search</button></form></section>
 <section class="sheet pour-sheet">${q ? `<p class="pour-note">${n(results.total)} result${results.total === 1 ? "" : "s"} for “${esc(q)}”${results.total > (results.rows || []).length ? ` — showing the first ${results.rows.length}` : ""}.</p><ul class="pour-results">${rows || "<li>No package has that name or description. Try fewer words.</li>"}</ul>` : `<p>Type a name or a few words from a description. Results are ranked the way <code>pour search</code> ranks them.</p>${copyBlock("pour search image viewer", "s1")}`}</section>`;
-  return layout({ title: q ? `“${q}” — Pour packages` : "Packages — Pour", description: `Search ${n(total)} Homebrew formulae and casks and ${BY}'s apps, all installable with Pour.`, path: "/search", theme, body, stats, env, noindex: !!q });
+  return layout({ shell, title: q ? `“${q}” — Pour packages` : "Packages — Pour", description: `Search ${n(total)} Homebrew formulae and casks and ${BY}'s apps, all installable with Pour.`, path: "/search", theme, body, stats, env, noindex: !!q });
 }
 
-export function packagePage({ theme, stats, env, name, app, formula, cask }) {
+export function packagePage({ theme, stats, env, name, app, formula, cask , shell }) {
   let body, title, description;
   if (app) {
     const released = !!app.url;
@@ -264,12 +269,12 @@ ${released ? `<h2>Downloads Pour knows about</h2><ul class="pour-list"><li>macOS
 ${f ? copyBlock(`pour install ${pkgName}`, "p1") : ""}${c ? copyBlock(`pour install --cask ${pkgName}`, "p1c") : ""}
 ${f ? `<h2>Formula</h2><ul class="pour-list">${deps.length ? `<li><strong>Depends on</strong> ${deps.map((d) => `<a href="/pour/p/${esc(d)}">${esc(d)}</a>`).join(", ")}</li>` : ""}${bottles.length ? `<li><strong>Bottles</strong> ${esc(bottles.join(", "))}</li>` : "<li>No bottle — Pour installs bottles only; Homebrew would build this from source.</li>"}${f.keg_only ? "<li>Keg-only: not linked into the prefix.</li>" : ""}${f.deprecated ? `<li class="pour-warn">Deprecated${f.deprecation_reason ? `: ${esc(f.deprecation_reason)}` : ""}</li>` : ""}${f.disabled ? `<li class="pour-warn">Disabled${f.disable_reason ? `: ${esc(f.disable_reason)}` : ""}</li>` : ""}${f.caveats ? `<li><strong>Caveats</strong><pre class="pour-out"><code>${esc(f.caveats)}</code></pre></li>` : ""}</ul>` : ""}
 ${c ? `<h2>Cask</h2><ul class="pour-list"><li><strong>Name</strong> ${esc((c.name || []).join(", "))}</li><li><strong>Version</strong> ${esc(c.version)}${c.auto_updates ? " (updates itself)" : ""}</li><li><strong>Installs</strong> ${esc(JSON.stringify((c.artifacts || []).flatMap((a) => Object.entries(a).filter(([k]) => ["app", "pkg", "binary", "suite"].includes(k)).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.filter((x) => typeof x === "string").join(", ") : v}`))))}</li>${c.depends_on?.macos ? `<li><strong>macOS</strong> ${esc(JSON.stringify(c.depends_on.macos))}</li>` : ""}${c.caveats ? `<li><strong>Caveats</strong><pre class="pour-out"><code>${esc(c.caveats)}</code></pre></li>` : ""}</ul>` : ""}
-<p class="pour-small">Metadata from <a href="https://formulae.brew.sh/${f ? "formula" : "cask"}/${esc(pkgName)}" target="_blank" rel="noopener">formulae.brew.sh</a>; the bottle comes from Homebrew's build farm. Pour only downloads and places it.</p></section>`;
+</section>`;
   }
-  return layout({ title, description, path: `/p/${name}`, theme, body, stats, env });
+  return layout({ shell, title, description, path: `/p/${name}`, theme, body, stats, env });
 }
 
-export function docsPage({ theme, stats, env }) {
+export function docsPage({ theme, stats, env , shell }) {
   const cmd = (c, d) => `<tr><td><code>${esc(c)}</code></td><td>${d}</td></tr>`;
   const body = `<section class="pour-hero pour-hero-small">${logoSvg(72)}<h1>Docs</h1><p class="pour-tag">Everything <code>pour</code> does, on one page.</p></section>
 <section class="sheet pour-sheet" id="install"><h2>Install</h2>${copyBlock(INSTALL, "d1")}
@@ -306,11 +311,11 @@ ${cmd("pour init / shellenv / self-update / completions SHELL", "Set up the pref
   cache/downloads/                 bottles and app downloads
   var/pour/index.pour              the index · var/pour/taps/ registries</code></pre>
 <p>Environment: <code>POUR_PREFIX</code> (keep it 13 characters or fewer on macOS), <code>POUR_CACHE</code>, <code>POUR_INDEX_URL</code>, <code>POUR_CA_BUNDLE</code> / <code>SSL_CERT_FILE</code> for corporate proxies, <code>HTTPS_PROXY</code>.</p></section>
-<section class="sheet pour-sheet"><h2>Pour and Homebrew</h2><p>Pour is a client for the Homebrew ecosystem: it installs the bottles Homebrew's build farm compiles, tests and publishes, and reads Homebrew's public JSON API to know about them. Pour does not build from source, and it does not change anything under <code>/opt/homebrew</code>. If a formula has no bottle for your system, Pour says so and points you to Homebrew.</p><p>Pour is made by ${BY} and is not affiliated with Homebrew. Source, under a source-available licence: <a href="https://github.com/JKS-sys/pour-13-Oct-2026" target="_blank" rel="noopener">github.com/JKS-sys/pour-13-Oct-2026</a>.</p></section>`;
-  return layout({ title: "Docs — Pour", description: "How to install Pour, every command, how a bottle is poured, and where files live.", path: "/docs", theme, body, stats, env });
+<section class="sheet pour-sheet"><h2>Pour and Homebrew</h2><p>Pour is Homebrew-compatible: it installs the same prebuilt bottles and reads the same public package index. Pour does not build from source, and it does not change anything under <code>/opt/homebrew</code>. If a formula has no bottle for your system, Pour says so and points you to Homebrew.</p><p>Pour is made by ${BY} and is not affiliated with Homebrew. Source, under a source-available licence: <a href="https://github.com/JKS-sys/pour-13-Oct-2026" target="_blank" rel="noopener">github.com/JKS-sys/pour-13-Oct-2026</a>.</p></section>`;
+  return layout({ shell, title: "Docs — Pour", description: "How to install Pour, every command, how a bottle is poured, and where files live.", path: "/docs", theme, body, stats, env });
 }
 
-export function notFound({ theme, stats, env, name }) {
+export function notFound({ theme, stats, env, name , shell }) {
   const body = `<section class="pour-hero pour-hero-small">${logoSvg(72)}<h1>Nothing poured here</h1><p class="pour-tag">${name ? `No formula, cask or app is called “${esc(name)}”.` : "That page does not exist."}</p><form class="pour-search" action="/pour/search" method="get" role="search"><input type="search" name="q" value="${esc(name || "")}" placeholder="Search packages…" aria-label="Search packages"><button type="submit">Search</button></form><p><a href="/pour">Back to Pour</a></p></section>`;
-  return layout({ title: "Not found — Pour", description: "Page not found.", path: "/404", theme, body, stats, env, noindex: true });
+  return layout({ shell, title: "Not found — Pour", description: "Page not found.", path: "/404", theme, body, stats, env, noindex: true });
 }
