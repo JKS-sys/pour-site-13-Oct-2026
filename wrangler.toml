@@ -1,5 +1,6 @@
 # Pour site — served at https://ipconfig.co.network/pour by its own Worker.
-# Routes run ahead of the custom-domain Worker, so the rest of the site is untouched.
+# Its routes catch /pour*, but every web page is asked of the main "ipconfig" Worker first;
+# Pour answers only its machine endpoints and the pages the main site does not have.
 name = "pour"
 main = "src/worker.js"
 compatibility_date = "2025-09-01"
@@ -23,3 +24,8 @@ bucket_name = "pour-registry"
 SITE_HOST = "ipconfig.co.network"
 GITHUB_OWNER = "JKS-sys"
 CF_ANALYTICS_TOKEN = "61945bd772044cf88341dd69c64cc920"
+
+# The main site answers first; Pour's pages are the fallback (see src/worker.js).
+[[services]]
+binding = "SITE"
+service = "ipconfig"

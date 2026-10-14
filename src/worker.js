@@ -50,9 +50,7 @@ async function siteShell(env) {
   let value = null;
   try {
     const host = env.SITE_HOST || "ipconfig.co.network";
-    // SHELL_ORIGIN lets a local run borrow the shell from a local copy of the site (http://127.0.0.1:8787).
-    const origin = env.SHELL_ORIGIN || `https://${host}`;
-    const r = await fetch(`${origin}/about`, { headers: { "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36", accept: "text/html" }, cf: { cacheTtl: 600 } });
+    const r = await fetch(`https://${host}/about`, { headers: { "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36", accept: "text/html" }, cf: { cacheTtl: 600 } });
     if (r.ok) {
       const html = await r.text();
       const h0 = html.indexOf('<header class="bar"'), h1 = html.indexOf("<main");
@@ -61,8 +59,7 @@ async function siteShell(env) {
       const scripts = (html.match(/<script[^>]*src="\/[^"]+"[^>]*><\/script>/g) || []).filter((t) => !t.includes("/pour/")).join("\n");
       if (h0 > 0 && h1 > h0 && f0 > h1 && f1 > f0 && head) {
         // the shell came from /about: move the "current page" mark onto the Pour link
-        // (the bar's own link is a plain <a href="/pour">; the Apps menu also links /pour, so match exactly)
-        const header = html.slice(h0, h1).replace(/ aria-current="page"/g, "").replace('<a href="/pour">', '<a href="/pour" aria-current="page">');
+        const header = html.slice(h0, h1).replace(/ aria-current="page"/g, "").replace(/<a ([^>]*href="\/pour"[^>]*)>/, '<a $1 aria-current="page">');
         value = { head, header, footer: html.slice(f0, f1 + 9), scripts };
       }
     }
@@ -129,8 +126,43 @@ function theme(request) {
   }
 }
 
+// Pour's machine endpoints and its own static files are always answered here.
+const POUR_ONLY = /^\/pour\/(install(\.sh)?|releases\/.*|dl\/.*|registry\/.*|apps\/index\.json|api\/.*|sitemap\.xml|robots\.txt|[\w.-]+\.(css|js|svg|png|webp|ico|json|txt))$/;
+
 export default {
+  // Web pages: the main ipconfig.co.network site answers first (service
+  // binding SITE → the "ipconfig" Worker). Pour's own pages are only the
+  // fallback, used when the site has no such page (404) or is failing (5xx).
   async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    const isPage = (request.method === "GET" || request.method === "HEAD") && !POUR_ONLY.test(url.pathname);
+    if (isPage && env.SITE) {
+      try {
+        const r = await env.SITE.fetch(request.clone());
+        // The site's own stop-gap for /pour/* ("only reached when the Pour Worker
+        // is not deployed") redirects to the GitHub repository: that means "no
+        // page here", so it falls through to Pour's page like a 404 does.
+        const loc = r.headers.get("location") || "";
+        const stopGap = r.status >= 300 && r.status < 400 && /^https:\/\/(github\.com|raw\.githubusercontent\.com)\/JKS-sys\/pour/i.test(loc);
+        if (r.status !== 404 && r.status < 500 && !stopGap) {
+          const out = new Response(r.body, r);
+          out.headers.set("x-served-by", "ipconfig");
+          return out;
+        }
+      } catch {}
+    }
+    const res = await pourFetch(request, env, ctx);
+    if (isPage) {
+      const out = new Response(res.body, res);
+      out.headers.set("x-served-by", "pour-fallback");
+      return out;
+    }
+    return res;
+  },
+};
+
+async function pourFetch(request, env, ctx) {
+  {
     const url = new URL(request.url);
     let path = url.pathname.replace(/\/+$/, "") || "/";
     if (path === "/pour" || path === "/") {
@@ -155,7 +187,7 @@ export default {
       return json({ name: "pour", version: String(rel.tag_name || "").replace(/^v/, ""), notes: rel.body || "", pub_date: rel.published_at, assets });
     }
     if (rest.startsWith("dl/")) {
-      // dl/<asset> is the newest release; dl/v1.2.3/<asset> a pinned one (what pinned installs and pour self-update use).
+      // dl/<asset> is the newest release; dl/v1.2.3/<asset> a pinned one.
       const m = /^dl\/(?:(v[0-9][0-9A-Za-z.-]*)\/)?([A-Za-z0-9._-]+)$/.exec(rest);
       if (!m) return notFoundResponse(request, env);
       const [, ver, asset] = m;
@@ -226,8 +258,8 @@ export default {
       }
     }
     return notFoundResponse(request, env);
-  },
-};
+  }
+}
 
 async function notFoundResponse(request, env, name) {
   const s = await stats(env);
