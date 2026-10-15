@@ -94,7 +94,8 @@
       for (var k = 0; k < 7; k++) { var u = document.createElement('i'); u.className = 'pour-bubble'; u.style.cssText = 'left:' + (r.left + r.width / 2 + (Math.random() * 24 - 12)) + 'px;top:' + r.top + 'px;background:var(' + cols[k % cols.length] + ');--dx:' + (Math.random() * 50 - 25) + 'px;animation-delay:' + (k * 45) + 'ms'; document.body.appendChild(u); setTimeout(function (n) { return function () { n.remove(); }; }(u), 1300); }
       try { if (window.VFX) window.VFX.play('bottle', b, { quiet: true }); } catch (er) {}
     }
-    if (SITE) { sfx('pour'); return; }
+    var poured = false; try { if (window.PourLogo) { window.PourLogo.pour(null, true); poured = true; } } catch (er) {}
+    if (SITE) { if (!poured) sfx('pour'); return; }
     var text = b.getAttribute('data-copy') || '';
     var label = b.textContent;
     var ok = function () { b.textContent = 'copied'; b.classList.add('done'); sfx('copy'); setTimeout(function () { b.textContent = label; b.classList.remove('done'); }, 1400); };

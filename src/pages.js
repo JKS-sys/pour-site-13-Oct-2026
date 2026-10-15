@@ -1,3 +1,4 @@
+import { pourLogoSvg } from "./pour-logo.js";
 // HTML for the Pour pages. One layout, the same header as the rest of
 // ipconfig.co.network, gold on warm neutrals, no pink.
 // Copyright (c) 2026 Jagadeesh Kumar S. All rights reserved.
@@ -48,6 +49,7 @@ ${body}
 </main>
 ${live ? live.footer : footer(stats)}
 ${live ? live.scripts : ""}
+<script src="/pour/pour-logo.js" defer></script>
 <script src="/pour/pour.js" defer></script>
 </body>
 </html>`;
@@ -122,14 +124,8 @@ function hero({ eyebrow, title, tag, sub = "", extra = "", logo = 112 }) {
 </section>`;
 }
 
-export function logoSvg(size = 96) {
-  return `<svg class="pour-logo" width="${size}" height="${size}" viewBox="0 0 96 96" aria-hidden="true">
-  <defs><linearGradient id="pg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#e8bd66"/><stop offset="1" stop-color="#b07d1e"/></linearGradient></defs>
-  <g class="pour-bottle"><path d="M58 8h12v10l6 6v22a6 6 0 0 1-6 6H58a6 6 0 0 1-6-6V24l6-6z" fill="url(#pg)"/><rect x="60" y="4" width="8" height="6" rx="1.5" fill="#8a5a00"/></g>
-  <path class="pour-stream" d="M57 46c-6 6-14 10-22 18" stroke="url(#pg)" stroke-width="4" stroke-linecap="round" fill="none"/>
-  <g class="pour-glass"><path d="M16 56h34l-4 30H20z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><clipPath id="gc"><path d="M16 56h34l-4 30H20z"/></clipPath><rect class="pour-liquid" x="12" y="62" width="44" height="30" fill="url(#pg)" clip-path="url(#gc)"/></g>
-</svg>`;
-}
+/** The animated Pour logo (pour-logo.js plays its sounds in step). */
+export function logoSvg(size = 96) { return pourLogoSvg(size); }
 
 export function home({ theme, stats, env , shell }) {
   const total = (stats.formulae || 0) + (stats.casks || 0);

@@ -45,15 +45,83 @@ body[data-shell="fallback"] .copy { font: inherit; font-size: .78rem; letter-spa
 @media (prefers-reduced-motion: no-preference) { .pour-platforms span { animation: pour-rise .5s ease both; } .pour-platforms span:nth-child(n) { animation-delay: calc(var(--n, 0) * 60ms); } }
 @keyframes pour-rise { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
 
-/* logo animation: the bottle tips, the stream flows, the glass fills, bubbles rise */
-.pour-logo { display: block; color: var(--c-gold); overflow: visible; }
-.pour-logo .pour-bottle { transform-origin: 62px 28px; animation: pour-tip 3.2s ease-in-out infinite; }
-.pour-logo .pour-stream { stroke-dasharray: 40; stroke-dashoffset: 40; animation: pour-flow 3.2s ease-in-out infinite; }
-.pour-logo .pour-liquid { transform: translateY(30px); animation: pour-fill 3.2s ease-in-out infinite; }
-@keyframes pour-tip { 0%, 15% { transform: rotate(0) } 30%, 75% { transform: rotate(-38deg) } 90%, 100% { transform: rotate(0) } }
-@keyframes pour-flow { 0%, 28% { stroke-dashoffset: 40; opacity: 0 } 34% { opacity: 1 } 40%, 70% { stroke-dashoffset: 0; opacity: 1 } 80%, 100% { stroke-dashoffset: -40; opacity: 0 } }
-@keyframes pour-fill { 0%, 30% { transform: translateY(30px) } 75%, 88% { transform: translateY(0) } 100% { transform: translateY(30px) } }
-@media (prefers-reduced-motion: reduce) { .pour-logo * { animation: none !important } .pour-logo .pour-liquid { transform: translateY(8px) } }
+/* ── the Pour logo, animated (the same block on ipconfig.co.network and the Pour site) ──
+   One 4.2 s cycle: rest → the bottle tips over the glass → the stream falls → the glass fills,
+   its surface rolling, bubbles rising, drops splashing → the stream breaks → the bottle rights
+   itself → the glass empties. Gold in both themes, bubbles in cyan/lime/sky (never pink). */
+.pour-logo { --pl-a: var(--c-gold, #d9a441); --pl-b: color-mix(in srgb, var(--pl-a) 58%, #4a3000); --pl-t: 4.2s;
+  display: block; overflow: visible; cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; }
+.pour-logo:focus-visible { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--pl-a) 70%, transparent)); }
+.pour-logo * { transform-box: view-box; }
+.pour-logo .pl-shade { fill: color-mix(in srgb, var(--pl-a) 22%, transparent); }
+.pour-logo .pl-bottle { transform-origin: 66px 32px; }
+.pour-logo .pl-cap { fill: var(--pl-b); }
+.pour-logo .pl-label { fill: color-mix(in srgb, var(--pl-b) 55%, transparent); }
+.pour-logo .pl-label-line { stroke: var(--pl-a); stroke-width: 1.6; stroke-linecap: round; }
+.pour-logo .pl-stream { fill: none; stroke: var(--pl-a); stroke-width: 3.6; stroke-linecap: round; stroke-dasharray: 46 46; stroke-dashoffset: 46; opacity: 0; }
+.pour-logo .pl-glass { fill: color-mix(in srgb, var(--pl-a) 7%, transparent); stroke-width: 3; stroke-linejoin: round; }
+.pour-logo .pl-glint { stroke: color-mix(in srgb, #fff 55%, transparent); stroke-width: 1.6; stroke-linecap: round; fill: none; }
+.pour-logo .pl-liquid, .pour-logo .pl-drops { transform: translateY(24px); }
+.pour-logo .pl-foam { fill: none; stroke: color-mix(in srgb, #fff 45%, var(--pl-a)); stroke-width: 1.2; }
+.pour-logo .pl-bub { opacity: 0; }
+.pour-logo .b1 { fill: var(--c-cyan, #56d4f5); } .pour-logo .b2 { fill: var(--c-lime, #a3e635); } .pour-logo .b3 { fill: var(--c-sky, #6cb6ff); } .pour-logo .b4 { fill: var(--c-teal, #4fd1c5); }
+.pour-logo .pl-drops circle { fill: var(--pl-a); opacity: 0; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .pour-logo.pl-reset * { animation: none !important; }
+  .pour-logo .pl-bottle { animation: pl-tip var(--pl-t) cubic-bezier(.55,.05,.35,1) infinite; }
+  .pour-logo .pl-stream { animation: pl-stream var(--pl-t) linear infinite; }
+  .pour-logo .pl-liquid, .pour-logo .pl-drops { animation: pl-fill var(--pl-t) ease-in-out infinite; }
+  .pour-logo .pl-wave, .pour-logo .pl-foam { animation: pl-wave 1.1s linear infinite; }
+  .pour-logo .pl-glass, .pour-logo .pl-glint { transform-origin: 33px 86px; animation: pl-clink var(--pl-t) ease-out infinite; }
+  .pour-logo .pl-shade { transform-origin: 33px 88px; animation: pl-shade var(--pl-t) ease-in-out infinite; }
+  .pour-logo .pl-bub { animation: pl-bub var(--pl-t) ease-in infinite; }
+  .pour-logo .b2 { animation-delay: .35s; } .pour-logo .b3 { animation-delay: .7s; } .pour-logo .b4 { animation-delay: 1.05s; }
+  .pour-logo .pl-drops .d1 { animation: pl-drop-l var(--pl-t) ease-out infinite; }
+  .pour-logo .pl-drops .d2 { animation: pl-drop-r var(--pl-t) ease-out infinite; }
+  .pour-logo .pl-drops .d3 { animation: pl-drop-u var(--pl-t) ease-out infinite; }
+}
+/* the stream only hangs from the bottle's mouth while it is tipped: translate(-8,-2) rotate(-112°)
+   about (66,32) puts the mouth at (33,40), right over the glass */
+@keyframes pl-tip {
+  0%, 10% { transform: none }
+  26% { transform: translate(-8px, -2px) rotate(-116deg) }
+  30%, 66% { transform: translate(-8px, -2px) rotate(-112deg) }
+  48% { transform: translate(-8px, -2.6px) rotate(-110deg) }
+  80% { transform: translate(1px, 0) rotate(6deg) }
+  86%, 100% { transform: none }
+}
+@keyframes pl-stream {
+  0%, 27% { stroke-dashoffset: 46; opacity: 0 }
+  28% { opacity: 1 }
+  34%, 64% { stroke-dashoffset: 0; opacity: 1 }
+  72% { stroke-dashoffset: -46; opacity: 1 }
+  73%, 100% { stroke-dashoffset: -46; opacity: 0 }
+}
+@keyframes pl-fill {
+  0%, 32% { transform: translateY(24px) }
+  70%, 90% { transform: translateY(0) }
+  100% { transform: translateY(24px) }
+}
+@keyframes pl-wave { from { transform: translateX(0) } to { transform: translateX(-16px) } }
+@keyframes pl-clink { 0%, 32% { transform: none } 34% { transform: scale(1.04, .97) } 37%, 100% { transform: none } }
+@keyframes pl-shade { 0%, 32% { transform: scaleX(.85); opacity: .6 } 70%, 90% { transform: scaleX(1.08); opacity: 1 } 100% { transform: scaleX(.85); opacity: .6 } }
+@keyframes pl-bub { 0%, 40% { opacity: 0; transform: translateY(0) } 50% { opacity: .95 } 82% { opacity: 0; transform: translateY(-17px) } 100% { opacity: 0 } }
+@keyframes pl-drop-l { 0%, 35% { opacity: 0; transform: none } 38% { opacity: 1 } 46% { opacity: 0; transform: translate(-6px, -7px) } 47%, 50% { opacity: 0; transform: none } 52% { opacity: 1 } 60%, 100% { opacity: 0; transform: translate(-5px, -6px) } }
+@keyframes pl-drop-r { 0%, 37% { opacity: 0; transform: none } 40% { opacity: 1 } 48% { opacity: 0; transform: translate(6px, -6px) } 49%, 55% { opacity: 0; transform: none } 57% { opacity: 1 } 64%, 100% { opacity: 0; transform: translate(5px, -7px) } }
+@keyframes pl-drop-u { 0%, 42% { opacity: 0; transform: none } 45% { opacity: 1 } 54%, 100% { opacity: 0; transform: translate(0, -9px) } }
+
+/* still: the bottle stays tipped with the stream drawn and the glass two-thirds full (like the icon) */
+@media (prefers-reduced-motion: reduce) {
+  .pour-logo .pl-bottle { transform: translate(-8px, -2px) rotate(-112deg); }
+  .pour-logo .pl-stream { stroke-dashoffset: 0; opacity: 1; }
+  .pour-logo .pl-liquid { transform: translateY(8px); }
+  .pour-logo .pl-drops { display: none; }
+}
+/* the pour wordmark under the logo (splash and banners) */
+.pour-mark { display: inline-grid; justify-items: center; gap: .1rem; }
+.pour-mark .pour-word { font: 700 clamp(1.8rem, 5vw, 2.6rem)/1 var(--font-display, Georgia, 'Times New Roman', serif); color: var(--c-gold); letter-spacing: .01em; margin: 0; }
+.pour-logo.pl-off * { animation-play-state: paused !important; }
 
 /* commands are the site's .prompt boxes; app.js colours the words, .copy copies */
 .pour-prompt-box { border-left-color: var(--hue, var(--warm)); margin: .7rem 0 1rem; }
