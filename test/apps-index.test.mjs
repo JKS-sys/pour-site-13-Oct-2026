@@ -33,12 +33,15 @@ test('a feed URL given as the download is used as is', () => {
   assert.equal(c.homepage, 'https://ipconfig.co.network/deft');
 });
 
-test('/pour/apps/index.json and /pour/api/apps answer from the merged list; register forwards to the dashboard', async () => {
+test('/pour/apps/index.json and /pour/api/apps answer from the merged list; register checks the app', async () => {
   const env = { SITE, SITE_HOST: 'ipconfig.co.network' };
   let r = await worker.fetch(new Request('https://ipconfig.co.network/pour/apps/index.json'), env, {});
   assert.equal(r.status, 200); assert.ok((await r.json()).casks.some((c) => c.token === 'hone'));
   r = await worker.fetch(new Request('https://ipconfig.co.network/pour/api/apps'), env, {});
   const j = await r.json(); assert.equal(j.apps.find((a) => a.token === 'hone').install, 'pour install --cask hone');
+  // the old dashboard-shaped body still works; with no release feed yet it does not qualify
   r = await worker.fetch(new Request('https://ipconfig.co.network/pour/api/apps/register', { method: 'POST', body: '{"app":"newapp"}' }), env, {});
-  assert.equal(r.status, 201);
+  assert.equal(r.status, 422);
+  const k = await r.json();
+  assert.ok(k.problems.some((p) => p.startsWith('feed:')));
 });

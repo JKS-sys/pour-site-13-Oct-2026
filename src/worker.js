@@ -6,6 +6,7 @@
 // Copyright (c) 2026 Jagadeesh Kumar S. All rights reserved.
 
 import { home, appsPage, packagePage, searchPage, notFound, docsPage, layout } from "./pages.js";
+import { register, registrations, toCask, readFeed } from "./register.js";
 
 const GH = "https://github.com/JKS-sys";
 const RAW = "https://raw.githubusercontent.com/JKS-sys";
@@ -85,15 +86,68 @@ export async function appsIndex(env) {
   const base = (await cachedJson(env, "apps/index.json", `${RAW}/pour-apps${SFX}/main/index.json`)) || { meta: { name: "pour-apps" }, formulae: [], casks: [] };
   let dash = [];
   try {
-    const r = env.SITE ? await env.SITE.fetch(new Request(`https://${host}/api/v1/apps`, { headers: { accept: "application/json" } })) : null;
+    // ?pour=1: every app the dashboard knows except the ones switched off — a new app that
+    // registered itself (first ping, crash report, Owner Panel sync) is in Pour as soon as
+    // its release feed answers with a version and a download; nobody has to approve it.
+    const r = env.SITE ? await env.SITE.fetch(new Request(`https://${host}/api/v1/apps?pour=1`, { headers: { accept: "application/json" } })) : null;
     if (r && r.ok) dash = (await r.json()).apps || [];
   } catch {}
   const have = new Set((base.casks || []).map((c) => c.token));
-  const added = dash.filter((a) => a && /^[a-z][a-z0-9-]{1,23}$/.test(a.id) && !have.has(a.id)).map((a) => dashboardCask(a, host));
-  const value = { ...base, meta: { ...(base.meta || {}), apps: (base.casks || []).length + added.length, from_dashboard: added.length }, casks: [...(base.casks || []), ...added] };
-  appsMemo = { until: Date.now() + 300_000, value };
+  const fresh = dash.filter((a) => a && /^[a-z][a-z0-9-]{1,23}$/.test(a.id) && !have.has(a.id) && a.status !== "off");
+  const added = (await Promise.all(fresh.map(async (a) => (a.status === "on" || (await feedQualifies(env, a, host)) ? dashboardCask(a, host) : null)))).filter(Boolean);
+  for (const c of added) have.add(c.token);
+  const regs = (await registrations(env)).filter((r) => r.kind === "cask" && !have.has(r.token)).map((r) => toCask(r, "jks-sys/pour-apps"));
+  const casks = [...(base.casks || []), ...added, ...regs];
+  const value = { ...base, meta: { ...(base.meta || {}), apps: casks.length, from_dashboard: added.length, registered: regs.length }, casks };
+  appsMemo = { until: Date.now() + 60_000, value };
   return value;
 }
+
+/** A dashboard app qualifies when its release feed answers with a version and a download. */
+const feedMemo = new Map();
+async function feedQualifies(env, a, host) {
+  const feed = /latest\.json$/.test(a.download_url || "") ? a.download_url : `https://${host}/updates/${a.id}/latest.json`;
+  const hit = feedMemo.get(feed);
+  if (hit && hit.until > Date.now()) return hit.ok;
+  let ok = false;
+  try {
+    const f = await readFeed(feed, (u, o) => (u.startsWith(`https://${host}/`) && env.SITE ? env.SITE.fetch(new Request(u, o)) : fetch(u, o)));
+    ok = Object.keys(f.platforms).length > 0;
+  } catch {}
+  feedMemo.set(feed, { ok, until: Date.now() + 3_600_000 });
+  return ok;
+}
+
+/* Command-line tools with builds for every system: pour-apps/tools.index.json (built by
+   build-tools.mjs, mirrored to R2 tools/index.json) plus every tool registered through
+   /pour/api/register. */
+let toolsMemo = { until: 0, value: null };
+export async function toolsIndex(env) {
+  if (toolsMemo.until > Date.now()) return toolsMemo.value;
+  const base = (await cachedJson(env, "tools/index.json", `${RAW}/pour-apps${SFX}/main/tools.index.json`)) || { meta: { name: "pour-tools" }, formulae: [], casks: [] };
+  const have = new Set((base.casks || []).map((c) => c.token));
+  const regs = (await registrations(env)).filter((r) => r.kind === "cli" && !have.has(r.token)).map((r) => toCask(r, "jks-sys/pour-tools"));
+  const casks = [...(base.casks || []), ...regs];
+  const value = { ...base, meta: { ...(base.meta || {}), tools: casks.length, registered: regs.length }, casks };
+  toolsMemo = { until: Date.now() + 60_000, value };
+  return value;
+}
+
+/** Who already owns a name: Homebrew, the creator's apps, the curated tools, the dashboard. */
+async function taken(env, token, kind, isOwner) {
+  if (isOwner) return null;
+  const [apps, tools] = await Promise.all([appsIndex(env), toolsIndex(env)]);
+  if ((apps?.casks || []).some((c) => c.token === token)) return `${token} is one of the apps made at ipconfig.co.network`;
+  if ((tools?.casks || []).some((c) => c.token === token)) return `${token} is already a listed tool`;
+  for (const k of ["formula", "cask"]) {
+    try {
+      const r = await fetch(`${HOMEBREW_API}/${k}/${encodeURIComponent(token)}.json`, { method: "HEAD", headers: { "user-agent": UA }, cf: { cacheTtl: 3600 } });
+      if (r.ok) return `${token} is a Homebrew ${k} already — choose another id`;
+    } catch {}
+  }
+  return null;
+}
+
 export function dashboardCask(a, host = "ipconfig.co.network") {
   const name = String(a.name || a.id);
   const feed = /latest\.json$/.test(a.download_url || "") ? a.download_url : `https://${host}/updates/${a.id}/latest.json`;
@@ -138,7 +192,7 @@ async function homebrew(kind, name) {
 async function stats(env) {
   const index = await cachedJson(env, "index.json", `${GH}/pour-registry${SFX}/releases/latest/download/index.json`);
   const release = await cachedJson(env, "releases/latest.json", `${RAW}/pour${SFX}/main/dist/latest.json`, 600_000);
-  const apps = await appsIndex(env);
+  const [apps, tools] = await Promise.all([appsIndex(env), toolsIndex(env)]);
   return {
     formulae: index?.formulae ?? 8658,
     casks: index?.casks ?? 7783,
@@ -146,6 +200,8 @@ async function stats(env) {
     version: release?.version ?? null,
     apps: apps?.casks?.filter((c) => c.url)?.length ?? 11,
     appsAll: apps?.casks ?? [],
+    tools: tools?.casks?.length ?? 0,
+    toolsAll: tools?.casks ?? [],
     index,
     release,
   };
@@ -166,7 +222,7 @@ function theme(request) {
 }
 
 // Pour's machine endpoints and its own static files are always answered here.
-const POUR_ONLY = /^\/pour\/((un)?install(\.sh)?|releases\/.*|dl\/.*|registry\/.*|apps\/index\.json|api\/.*|sitemap\.xml|robots\.txt|[\w.-]+\.(css|js|svg|png|webp|ico|json|txt))$/;
+const POUR_ONLY = /^\/pour\/((un)?install(\.sh)?|releases\/.*|dl\/.*|registry\/.*|(apps|tools)\/index\.json|api\/.*|sitemap\.xml|robots\.txt|[\w.-]+\.(css|js|svg|png|webp|ico|json|txt))$/;
 
 export default {
   // Web pages: the main ipconfig.co.network site answers first (service
@@ -251,16 +307,41 @@ async function pourFetch(request, env, ctx) {
       const idx = await appsIndex(env);
       return json({ ok: true, apps: (idx?.casks || []).map((c) => ({ token: c.token, name: c.name?.[0] || c.token, desc: c.desc, version: c.version, homepage: c.homepage, source: c.pour?.source || "pour-apps", install: `pour install --cask ${c.token}` })) }, 200, 120);
     }
-    if (rest === "api/apps/register" && request.method === "POST") {
-      // An app introduces itself; the dashboard keeps it pending until the owner switches it on.
-      if (!env.SITE) return json({ ok: false, error: "no_dashboard" }, 503, 0);
-      const body = await request.text();
-      const r = await env.SITE.fetch(new Request(`https://${env.SITE_HOST || "ipconfig.co.network"}/api/v1/apps/register`, { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": request.headers.get("cf-connecting-ip") || "" }, body }));
-      return new Response(r.body, { status: r.status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "access-control-allow-origin": "*" } });
+    if (rest === "tools/index.json") {
+      const idx = await toolsIndex(env);
+      return json(idx, 200, 300);
+    }
+    if (rest === "api/tools") {
+      const idx = await toolsIndex(env);
+      return json({ ok: true, tools: (idx?.casks || []).map((c) => ({ token: c.token, desc: c.desc, version: c.version, homepage: c.homepage, systems: (c.pour?.installers || []).map((i) => i.platform), source: c.pour?.source || "pour-tools", install: `pour install ${c.token}` })) }, 200, 300);
+    }
+    if (rest === "api/registrations") {
+      const regs = await registrations(env);
+      return json({ ok: true, registrations: regs.map((r) => ({ kind: r.kind, token: r.token, name: r.name, desc: r.desc, version: r.version, homepage: r.homepage, systems: Object.keys(r.platforms || {}), registered_at: r.created_at, updated_at: r.updated_at, install: r.kind === "cli" ? `pour install ${r.token}` : `pour install --cask ${r.token}` })) }, 200, 60);
+    }
+    if ((rest === "api/register" || rest === "api/apps/register") && request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-methods": "POST, OPTIONS", "access-control-allow-headers": "content-type, authorization" } });
+    }
+    if ((rest === "api/register" || rest === "api/apps/register") && request.method === "POST") {
+      // Registration is automatic: qualified → listed at once (see register.js). The old
+      // dashboard-shaped body ({ app, name, line, version, download_url }) still works and is
+      // also sent on to the dashboard, which keeps its own record of the app.
+      let raw = await request.text();
+      let body = {};
+      try { body = JSON.parse(raw || "{}"); } catch {}
+      const host = env.SITE_HOST || "ipconfig.co.network";
+      if (rest === "api/apps/register" || (body.app && !body.token)) {
+        body = { kind: "cask", token: body.app, name: body.name, desc: body.desc || body.line || (body.name ? `${body.name} — an app made at ${host}` : ""), homepage: body.homepage || `https://${host}/${body.app}`, version: body.version, feed: /latest\.json$/.test(body.download_url || "") ? body.download_url : `https://${host}/updates/${body.app}/latest.json`, key: body.key, from: body.platform };
+        if (env.SITE) ctx?.waitUntil?.(env.SITE.fetch(new Request(`https://${host}/api/v1/apps/register`, { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": request.headers.get("cf-connecting-ip") || "" }, body: raw })).catch(() => null));
+      }
+      const req2 = new Request(request.url, { method: "POST", headers: request.headers, body: JSON.stringify(body) });
+      const out = await register(req2, env, { taken: (t, k, owner) => taken(env, t, k, owner), fetch: (u, o) => (u.startsWith(`https://${host}/`) && env.SITE ? env.SITE.fetch(new Request(u, o)) : fetch(u, o)) });
+      if (out.status < 300) { appsMemo.until = 0; toolsMemo.until = 0; searchCache.until = 0; }
+      return new Response(JSON.stringify(out.body), { status: out.status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "access-control-allow-origin": "*" } });
     }
     if (rest === "api/stats") {
       const s = await stats(env);
-      return json({ formulae: s.formulae, casks: s.casks, apps: s.apps, synced_at: s.synced_at, version: s.version, total: s.formulae + s.casks });
+      return json({ formulae: s.formulae, casks: s.casks, apps: s.apps, tools: s.tools, synced_at: s.synced_at, version: s.version, total: s.formulae + s.casks + s.tools });
     }
     if (rest === "api/search") {
       const q = (url.searchParams.get("q") || "").trim().toLowerCase();
@@ -339,6 +420,11 @@ async function loadSearch(env) {
   const apps = await appsIndex(env);
   const rows = (data?.rows || []).map((r) => ({ name: r[0], kind: r[1] === 0 ? "formula" : "cask", desc: r[2] || "", version: r[3] || "", homepage: r[4] || "", source: "homebrew" }));
   for (const c of apps?.casks || []) rows.push({ name: c.token, kind: "cask", desc: c.desc, version: c.version, homepage: c.homepage, source: "jks-sys/pour-apps" });
+  const tools = await toolsIndex(env);
+  const formulaNames = new Set(rows.filter((r) => r.kind === "formula").map((r) => r.name));
+  // A tool named like a Homebrew formula is the same command (its own build where no bottle
+  // exists), so it is not listed twice; the others are command-line tools: `pour install NAME`.
+  for (const c of tools?.casks || []) if (!formulaNames.has(c.token)) rows.push({ name: c.token, kind: "formula", desc: c.desc, version: c.version, homepage: c.homepage, source: "jks-sys/pour-tools" });
   const result = { until: Date.now() + (rows.length ? 600_000 : 15_000), rows, meta: { formulae: data?.formulae, casks: data?.casks, generated_at: data?.generated_at } };
   searchCache = result;
   return result;

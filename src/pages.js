@@ -187,7 +187,7 @@ ${hero({ eyebrow: "Pour · the package manager", title: "Pour", tag: "The Homebr
   ${rule("Jagadeesh's apps, one command away")}
   <p>Pour ships with a second registry, <a href="https://github.com/JKS-sys/pour-apps-13-Oct-2026" target="_blank" rel="noopener">pour-apps</a>: the desktop apps made here — Peek, Voxo, Nib, Keel, Swep, Grab, Dial, Mend, Twig, Cine, Veil — on macOS, Windows, Linux and FreeBSD, always at the version their release feed says.</p>
   <div class="pour-apps-row">
-    ${(stats.appsAll || []).filter((c) => c.url).map((c) => `<a class="pour-app" href="/pour/p/${esc(c.token)}"><strong>${esc(c.name?.[0] || c.token)}</strong><span>${esc(c.desc)}</span><code>pour install ${esc(c.token)}</code></a>`).join("")}
+    ${(stats.appsAll || []).filter((c) => c.url).map((c) => `<a class="pour-app" href="/pour/p/${esc(c.token)}"><strong>${esc(c.name?.[0] || c.token)}</strong><span>${esc(c.desc)}</span><code>pour install --cask ${esc(c.token)}</code></a>`).join("")}
   </div>
   <p><a href="/pour/apps">All apps and how each one installs →</a></p>
 </section>
@@ -231,7 +231,7 @@ export function appsPage({ theme, stats, env , shell }) {
     return `<article class="pour-card${released ? "" : " pour-card-soon"}">
       <h3><a href="/pour/p/${esc(c.token)}">${esc(c.name?.[0] || c.token)}</a> <small>${released ? esc(c.version) : "coming soon"}</small></h3>
       <p>${esc(c.desc)}</p>
-      ${released ? copyBlock(`pour install ${c.token}`, `app-${c.token}`) : `<p class="pour-note">Not released yet — watch <a href="${esc(c.homepage)}">${esc(c.homepage.replace("https://", ""))}</a>.</p>`}
+      ${released ? copyBlock(`pour install --cask ${c.token}`, `app-${c.token}`) : `<p class="pour-note">Not released yet — watch <a href="${esc(c.homepage)}">${esc(c.homepage.replace("https://", ""))}</a>.</p>`}
       <p class="pour-small">macOS (Apple Silicon${c.variations && Object.keys(c.variations).length ? ", Intel" : ""})${others ? ` · ${esc(others)}` : ""} · <a href="${esc(c.homepage)}">product page</a>${c.pour?.releases ? ` · <a href="${esc(c.pour.releases)}" target="_blank" rel="noopener">releases</a>` : ""}</p>
     </article>`;
   }).join("");
@@ -263,9 +263,9 @@ export function packagePage({ theme, stats, env, name, app, formula, cask , shel
     const released = !!app.url;
     const others = (app.pour?.installers || []).map((i) => `<li>${esc(i.platform)} — ${esc(i.kind)} <a href="${esc(i.url)}" rel="nofollow">download</a></li>`).join("");
     title = `${app.name?.[0] || app.token} — Pour`;
-    description = `${app.desc}. Install with pour install ${app.token}.`;
+    description = `${app.desc}. Install with pour install --cask ${app.token}.`;
     body = `${hero({ eyebrow: "Pour · app", title: `${esc(app.name?.[0] || app.token)} <small>${released ? esc(app.version) : "coming soon"}</small>`, tag: esc(app.desc), extra: `<p><a href="${esc(app.homepage)}">${esc(app.homepage)}</a> · registry <code>jks-sys/pour-apps</code></p>`, logo: 84 })}
-<section class="sheet pour-sheet">${released ? copyBlock(`pour install ${app.token}`, "p1") : `<p class="pour-note">${esc(app.caveats || "Not released yet.")}</p>`}
+<section class="sheet pour-sheet">${released ? copyBlock(`pour install --cask ${app.token}`, "p1") : `<p class="pour-note">${esc(app.caveats || "Not released yet.")}</p>`}
 ${released ? `${rule('Downloads Pour knows about')}<ul class="pour-list"><li>macOS Apple Silicon — <a href="${esc(app.url)}" rel="nofollow">download</a></li>${app.variations?.sonoma ? `<li>macOS Intel — <a href="${esc(app.variations.sonoma.url)}" rel="nofollow">download</a></li>` : ""}${others}</ul><p class="pour-small">Pour checks <code>${esc(app.pour?.livecheck || "")}</code> before every install, so the version above may already be newer.</p>` : ""}
 ${rule('Remove it')}${copyBlock(`pour uninstall --zap ${app.token}`, "p2")}</section>`;
   } else {
@@ -300,10 +300,11 @@ ${cmd("pour upgrade [NAME…]", "Upgrade what is outdated. <code>--greedy</code>
 ${cmd("pour update", "Fetch the newest index (one conditional request).")}
 ${cmd("pour search WORDS", "Names and descriptions, ranked; <code>--cask</code> / <code>--formula</code>.")}
 ${cmd("pour info NAME", "Everything about a package; <code>--json</code> for scripts.")}
-${cmd("pour list / outdated / leaves / deps / uses", "What is installed and how it hangs together.")}
+${cmd("pour list / outdated / leaves / deps / uses", "What is installed and how it hangs together. <code>pour list</code> also shows what Homebrew installed on this machine, and which of it Pour has.")}
 ${cmd("pour link / unlink / pin / unpin", "Control the prefix symlinks and hold versions.")}
 ${cmd("pour bundle [install -f Brewfile | dump]", "Brewfiles, as Homebrew reads them.")}
-${cmd("pour migrate", "Install everything Homebrew has on this machine.")}
+${cmd("pour migrate", "Install everything Homebrew has on this machine (read from its Cellar and Caskroom; brew need not be on PATH).")}
+${cmd("pour register NAME --cask … | --cli …", "Register an app (<code>pour install --cask NAME</code>) or a command-line tool (<code>pour install NAME</code>). Checked automatically — a clean name, a description, an https page that answers, downloads that answer with a SHA-256 — and listed for everyone at once when it qualifies; no approval queue. Or POST the same JSON to <code>/pour/api/register</code>.")}
 ${cmd("pour tap add NAME URL", "Add a registry (a JSON file in Homebrew's API shape, like pour-apps).")}
 ${cmd("pour doctor / cleanup / env", "Check the install, free unused store entries, show prefix and index age.")}
 ${cmd("pour init / shellenv / self-update / completions SHELL", "Set up the prefix, print the PATH line, update Pour itself, shell completions.")}
