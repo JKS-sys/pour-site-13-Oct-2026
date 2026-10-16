@@ -133,6 +133,16 @@ export async function toolsIndex(env) {
   return value;
 }
 
+/* Desktop apps' own installers for Windows, Linux and FreeBSD, named like Homebrew's casks
+   (pour-apps/desktop.index.json, mirrored to R2 desktop/index.json). */
+let desktopMemo = { until: 0, value: null };
+export async function desktopIndex(env) {
+  if (desktopMemo.until > Date.now()) return desktopMemo.value;
+  const value = (await cachedJson(env, "desktop/index.json", `${RAW}/pour-apps${SFX}/main/desktop.index.json`)) || { meta: { name: "pour-desktop" }, formulae: [], casks: [] };
+  desktopMemo = { until: Date.now() + 300_000, value };
+  return value;
+}
+
 /** Who already owns a name: Homebrew, the creator's apps, the curated tools, the dashboard. */
 async function taken(env, token, kind, isOwner) {
   if (isOwner) return null;
@@ -192,7 +202,7 @@ async function homebrew(kind, name) {
 async function stats(env) {
   const index = await cachedJson(env, "index.json", `${GH}/pour-registry${SFX}/releases/latest/download/index.json`);
   const release = await cachedJson(env, "releases/latest.json", `${RAW}/pour${SFX}/main/dist/latest.json`, 600_000);
-  const [apps, tools] = await Promise.all([appsIndex(env), toolsIndex(env)]);
+  const [apps, tools, desktop] = await Promise.all([appsIndex(env), toolsIndex(env), desktopIndex(env)]);
   return {
     formulae: index?.formulae ?? 8658,
     casks: index?.casks ?? 7783,
@@ -201,6 +211,9 @@ async function stats(env) {
     apps: apps?.casks?.filter((c) => c.url)?.length ?? 11,
     appsAll: apps?.casks ?? [],
     tools: tools?.casks?.length ?? 0,
+    desktop: desktop?.casks?.length ?? 0,
+    desktopInstallers: (desktop?.casks || []).reduce((n, c) => n + (c.pour?.installers?.length || 0), 0),
+    toolInstallers: (tools?.casks || []).reduce((n, c) => n + (c.pour?.installers?.length || 0), 0),
     toolsAll: tools?.casks ?? [],
     index,
     release,
@@ -222,7 +235,7 @@ function theme(request) {
 }
 
 // Pour's machine endpoints and its own static files are always answered here.
-const POUR_ONLY = /^\/pour\/((un)?install(\.sh)?|releases\/.*|dl\/.*|registry\/.*|(apps|tools)\/index\.json|api\/.*|sitemap\.xml|robots\.txt|[\w.-]+\.(css|js|svg|png|webp|ico|json|txt))$/;
+const POUR_ONLY = /^\/pour\/((un)?install(\.sh)?|releases\/.*|dl\/.*|registry\/.*|(apps|tools|desktop)\/index\.json|api\/.*|sitemap\.xml|robots\.txt|[\w.-]+\.(css|js|svg|png|webp|ico|json|txt))$/;
 
 export default {
   // Web pages: the main ipconfig.co.network site answers first (service
@@ -311,6 +324,13 @@ async function pourFetch(request, env, ctx) {
       const idx = await toolsIndex(env);
       return json(idx, 200, 300);
     }
+    if (rest === "desktop/index.json") {
+      return json(await desktopIndex(env), 200, 300);
+    }
+    if (rest === "api/desktop") {
+      const idx = await desktopIndex(env);
+      return json({ ok: true, apps: (idx?.casks || []).map((c) => ({ token: c.token, name: c.name?.[0] || c.token, desc: c.desc, version: c.version, homepage: c.homepage, systems: (c.pour?.installers || []).map((i) => `${i.platform}:${i.kind}`), install: `pour install --cask ${c.token}` })) }, 200, 300);
+    }
     if (rest === "api/tools") {
       const idx = await toolsIndex(env);
       return json({ ok: true, tools: (idx?.casks || []).map((c) => ({ token: c.token, desc: c.desc, version: c.version, homepage: c.homepage, systems: (c.pour?.installers || []).map((i) => i.platform), source: c.pour?.source || "pour-tools", install: `pour install ${c.token}` })) }, 200, 300);
@@ -341,7 +361,7 @@ async function pourFetch(request, env, ctx) {
     }
     if (rest === "api/stats") {
       const s = await stats(env);
-      return json({ formulae: s.formulae, casks: s.casks, apps: s.apps, tools: s.tools, synced_at: s.synced_at, version: s.version, total: s.formulae + s.casks + s.tools });
+      return json({ formulae: s.formulae, casks: s.casks, apps: s.apps, tools: s.tools, desktop: s.desktop, downloads_for_other_systems: s.toolInstallers + s.desktopInstallers, synced_at: s.synced_at, version: s.version, total: s.formulae + s.casks + s.tools });
     }
     if (rest === "api/search") {
       const q = (url.searchParams.get("q") || "").trim().toLowerCase();

@@ -303,7 +303,9 @@ ${cmd("pour info NAME", "Everything about a package; <code>--json</code> for scr
 ${cmd("pour list / outdated / leaves / deps / uses", "What is installed and how it hangs together. <code>pour list</code> also shows what Homebrew installed on this machine, and which of it Pour has.")}
 ${cmd("pour link / unlink / pin / unpin", "Control the prefix symlinks and hold versions.")}
 ${cmd("pour bundle [install -f Brewfile | dump]", "Brewfiles, as Homebrew reads them.")}
-${cmd("pour migrate", "Install everything Homebrew has on this machine (read from its Cellar and Caskroom; brew need not be on PATH).")}
+${cmd("pour migrate", "Install everything Homebrew has on this machine (read from its Cellar and Caskroom; brew need not be on PATH). Apps already in Applications are adopted, not downloaded again.")}
+${cmd("pour install --cask --adopt NAME", "Take over an app that is already in Applications (from Homebrew, the App Store or by hand).")}
+${cmd("pour list -1", "One name per line for scripts (also what a pipe gets); <code>--homebrew</code> adds what Homebrew installed.")}
 ${cmd("pour register NAME --cask … | --cli …", "Register an app (<code>pour install --cask NAME</code>) or a command-line tool (<code>pour install NAME</code>). Checked automatically — a clean name, a description, an https page that answers, downloads that answer with a SHA-256 — and listed for everyone at once when it qualifies; no approval queue. Or POST the same JSON to <code>/pour/api/register</code>.")}
 ${cmd("pour tap add NAME URL", "Add a registry (a JSON file in Homebrew's API shape, like pour-apps).")}
 ${cmd("pour doctor / cleanup / env", "Check the install, free unused store entries, show prefix and index age.")}
