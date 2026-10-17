@@ -71,3 +71,7 @@ The site is deployed by `pour/update.sh` (step `site`) and by hand with `npm run
 
 Copyright © 2026 **Jagadeesh Kumar S**. All rights reserved. Source-available under the [Pour licence](https://github.com/JKS-sys/pour-13-Oct-2026/blob/main/LICENSE).
 <!-- /licence -->
+
+---
+
+> **If Pour helps you, please ⭐ star this repository — it helps other people find it.**
