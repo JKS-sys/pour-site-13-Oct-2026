@@ -13,6 +13,7 @@
 (function () {
   'use strict';
   var T = 4.2, KEY = 'ipc-sound', ctx = null, master = null, unlocked = false, noiseBuf = null;
+  var live = []; // every sound of the current pour, so a new pour stops the old one instead of piling on top
   var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   function muted() { try { return localStorage.getItem(KEY) === 'off'; } catch (e) { return false; } }
   function ac() {
@@ -29,7 +30,7 @@
     var c = ac(); if (!c) return; var t = c.currentTime + Math.max(0, at);
     var o = c.createOscillator(), g = c.createGain(); o.type = type;
     o.frequency.setValueAtTime(f0, t); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
-    env(g, t, 0.008, vol, dur); o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
+    env(g, t, 0.008, vol, dur); o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05); live.push(o);
   }
   function noiseSrc(c) {
     if (!noiseBuf) { noiseBuf = c.createBuffer(1, c.sampleRate * 2, c.sampleRate); var d = noiseBuf.getChannelData(0); for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
@@ -40,7 +41,7 @@
     var s = noiseSrc(c), f = c.createBiquadFilter(), g = c.createGain();
     f.type = 'bandpass'; f.Q.value = q || 1.2;
     f.frequency.setValueAtTime(fLo, t); f.frequency.exponentialRampToValueAtTime(fHi, t + dur);
-    env(g, t, 0.02, vol, dur); s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + dur + 0.05);
+    env(g, t, 0.02, vol, dur); s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + dur + 0.05); live.push(s);
   }
   /* the pour itself: a stream of noise through a resonance that climbs as the glass fills (the
      shorter the air column, the higher it rings), with a slow wobble so it gurgles */
@@ -54,7 +55,7 @@
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.09, t + 0.12);
     g.gain.setValueAtTime(0.09, t + dur - 0.25); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(hp); hp.connect(bp); bp.connect(g); g.connect(master);
-    s.start(t); s.stop(t + dur + 0.05); lfo.start(t); lfo.stop(t + dur + 0.05);
+    s.start(t); s.stop(t + dur + 0.05); lfo.start(t); lfo.stop(t + dur + 0.05); live.push(s, lfo);
   }
   var SFX = {
     lift: function (at) { noise(at, 0.32, 0.04, 500, 1600, 0.8); osc('sine', 330, 520, at, 0.22, 0.025); },
@@ -66,9 +67,11 @@
     down: function (at) { osc('sine', 180, 95, at, 0.12, 0.06); noise(at, 0.05, 0.025, 1200, 600, 1); },
   };
   /* one cycle, `off` seconds after it began (0 = right now is the start) */
+  function hush() { var l = live; live = []; l.forEach(function (n) { try { n.stop(0); } catch (e) {} }); }
   function track(off) {
     off = off || 0;
     if (!ac()) return;
+    hush();
     var at = function (x) { return x - off; };
     if (at(0.42) > -0.05) SFX.lift(at(0.42));
     if (at(1.18) > -0.2) SFX.stream(Math.max(0, at(1.18)), 1.65 - Math.max(0, -at(1.18)));
@@ -90,7 +93,7 @@
     svg.classList.add('pl-reset'); void svg.getBoundingClientRect(); svg.classList.remove('pl-reset');
   }
   function onCycle(svg) {
-    if (!unlocked || document.hidden || muted() || svg !== speaker()) return;
+    if (!unlocked || document.hidden || muted() || svg !== speaker()) { if (document.hidden) hush(); return; }
     track(0);
   }
   function unlock() {
