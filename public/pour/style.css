@@ -201,3 +201,8 @@ body[data-shell="fallback"] .copy { font: inherit; font-size: .78rem; letter-spa
   .pour-term-body { min-height: 9rem; font-size: .78rem; }
   .pour-search { flex-wrap: wrap; }
 }
+/* "Hear it pour": shown under the Pour logo until the page has had a tap or key (browsers need one for sound) */
+.pl-hear { display: block; margin: .35rem auto 0; font: inherit; font-size: .74rem; letter-spacing: .04em; color: var(--c-gold); background: color-mix(in srgb, var(--c-gold) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--c-gold) 45%, var(--line)); border-radius: 999px; padding: .22rem .7rem; cursor: pointer; }
+.pl-hear:hover { background: color-mix(in srgb, var(--c-gold) 20%, var(--surface)); }
+html.pl-sound-on .pl-hear { display: none; }
+.pour-hero-art { display: flex; flex-direction: column; align-items: center; }
