@@ -28,7 +28,7 @@ wr() {
   while :; do
     set +e; out=$(npx wrangler "$@" 2>&1); status=$?; set -e
     if [ $status -eq 0 ]; then printf '%s\n' "$out"; return 0; fi
-    if printf '%s' "$out" | grep -qiE 'malformed response|5[0-9][0-9] (Gateway|Internal|Service|Bad)|ETIMEDOUT|ECONNRESET|fetch failed|timed out'; then
+    if grep <<<"$out" -qiE 'malformed response|5[0-9][0-9] (Gateway|Internal|Service|Bad)|ETIMEDOUT|ECONNRESET|fetch failed|timed out'; then
       n=$((n+1)); [ $n -ge 5 ] && { printf '%s\n' "$out"; return $status; }
       echo "  · Cloudflare hiccup — retrying in ${delay}s ($n/4)" >&2; sleep $delay; delay=$((delay*2)); [ $delay -gt 40 ] && delay=40
     else printf '%s\n' "$out"; return $status; fi
@@ -39,6 +39,6 @@ echo "→ Installing…"; npm ci --silent 2>/dev/null || npm install --silent
 echo "→ Testing…"; npm test --silent
 echo "→ Deploying the Pour Worker…"; wr deploy | tail -4
 P=$(curl -fsS -A 'Mozilla/5.0' https://ipconfig.co.network/pour/api/apps 2>/dev/null || true)
-printf '%s' "$P" | grep -q '"apps"' && echo "  ✓ /pour/api/apps answers ($(printf '%s' "$P" | grep -o '"token"' | wc -l | tr -d ' ') apps)" || echo "  · /pour/api/apps did not answer yet"
+grep <<<"$P" -q '"apps"' && echo "  ✓ /pour/api/apps answers ($(grep <<<"$P" -o '"token"' | wc -l | tr -d ' ') apps)" || echo "  · /pour/api/apps did not answer yet"
 echo ""
 echo "→ Pushing to GitHub…"; bash scripts/push-github.sh || echo "  ! push failed — the Worker is deployed; run: bash scripts/push-github.sh"
