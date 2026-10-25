@@ -143,6 +143,16 @@ export async function desktopIndex(env) {
   return value;
 }
 
+/* Windows software synced every six hours from the Scoop community buckets (pour-apps/
+   build-scoop.mjs → windows.index.json, mirrored to R2 windows/index.json). */
+let windowsMemo = { until: 0, value: null };
+export async function windowsIndex(env) {
+  if (windowsMemo.until > Date.now()) return windowsMemo.value;
+  const value = (await cachedJson(env, "windows/index.json", `${RAW}/pour-apps${SFX}/main/windows.index.json`)) || { meta: { name: "pour-windows" }, formulae: [], casks: [] };
+  windowsMemo = { until: Date.now() + 300_000, value };
+  return value;
+}
+
 /** Who already owns a name: Homebrew, the creator's apps, the curated tools, the dashboard. */
 async function taken(env, token, kind, isOwner) {
   if (isOwner) return null;
@@ -202,7 +212,7 @@ async function homebrew(kind, name) {
 async function stats(env) {
   const index = await cachedJson(env, "index.json", `${GH}/pour-registry${SFX}/releases/latest/download/index.json`);
   const release = await cachedJson(env, "releases/latest.json", `${RAW}/pour${SFX}/main/dist/latest.json`, 600_000);
-  const [apps, tools, desktop] = await Promise.all([appsIndex(env), toolsIndex(env), desktopIndex(env)]);
+  const [apps, tools, desktop, windows] = await Promise.all([appsIndex(env), toolsIndex(env), desktopIndex(env), windowsIndex(env)]);
   return {
     formulae: index?.formulae ?? 8658,
     casks: index?.casks ?? 7783,
@@ -212,6 +222,8 @@ async function stats(env) {
     appsAll: apps?.casks ?? [],
     tools: tools?.casks?.length ?? 0,
     desktop: desktop?.casks?.length ?? 0,
+    windows: windows?.casks?.length ?? 0,
+    windowsInstallers: (windows?.casks || []).reduce((n, c) => n + (c.pour?.installers?.length || 0), 0),
     desktopInstallers: (desktop?.casks || []).reduce((n, c) => n + (c.pour?.installers?.length || 0), 0),
     toolInstallers: (tools?.casks || []).reduce((n, c) => n + (c.pour?.installers?.length || 0), 0),
     toolsAll: tools?.casks ?? [],
@@ -235,7 +247,7 @@ function theme(request) {
 }
 
 // Pour's machine endpoints and its own static files are always answered here.
-const POUR_ONLY = /^\/pour\/((un)?install(\.sh)?|releases\/.*|dl\/.*|registry\/.*|(apps|tools|desktop)\/index\.json|api\/.*|sitemap\.xml|robots\.txt|[\w.-]+\.(css|js|svg|png|webp|ico|json|txt))$/;
+const POUR_ONLY = /^\/pour\/((un)?install(\.sh)?|releases\/.*|dl\/.*|registry\/.*|(apps|tools|desktop|windows)\/index\.json|api\/.*|sitemap\.xml|robots\.txt|[\w.-]+\.(css|js|svg|png|webp|ico|json|txt))$/;
 
 export default {
   // Web pages: the main ipconfig.co.network site answers first (service
@@ -324,6 +336,21 @@ async function pourFetch(request, env, ctx) {
       const idx = await toolsIndex(env);
       return json(idx, 200, 300);
     }
+    if (rest === "windows/index.json") {
+      return json(await windowsIndex(env), 200, 300);
+    }
+    if (rest === "api/sources") {
+      // where every registration comes from, how often it syncs, and what qualifies
+      const [s, w] = [await stats(env), await windowsIndex(env)];
+      return json({ ok: true, sources: [
+        { name: "homebrew", what: "every Homebrew formula and cask", from: "formulae.brew.sh API", every: "4 hours", count: s.formulae + s.casks, qualifies: "everything Homebrew publishes; removed when Homebrew removes it; disabled formulae fall back to a vendor build" },
+        { name: "pour-tools", what: "command-line tools with their own builds for every system", from: "GitHub releases and vendor download folders", every: "6 hours", count: s.tools, qualifies: "public, unarchived, licence, stable release, SHA-256 for every download, at least two systems" },
+        { name: "pour-desktop", what: "desktop apps' Windows and Linux installers", from: "GitHub releases", every: "6 hours", count: s.desktop, qualifies: "licence (or the vendor's own repository), stable release, SHA-256 for every installer" },
+        { name: "pour-windows", what: "Windows software", from: "Scoop buckets ScoopInstaller/Main and ScoopInstaller/Extras", every: "6 hours", count: (w?.casks || []).length, qualifies: "stable version, licence, https homepage, a 64-bit https download with SHA-256, no PowerShell steps, no installer scripts, no dependencies, names its programs", left_out: w?.meta?.left_out || null },
+        { name: "pour-apps", what: "apps made at ipconfig.co.network", from: "each app's release feed and the dashboard", every: "6 hours and at every release", count: s.apps },
+        { name: "registered", what: "apps and tools anyone registered", from: "POST /pour/api/register (pour register)", every: "within a minute", qualifies: "free id, 10–200-char description, https page that answers, downloads that answer with a file ≤ 2 GB and their SHA-256 (or a release feed), plain program names, 10 a day per address" },
+      ] }, 200, 300);
+    }
     if (rest === "desktop/index.json") {
       return json(await desktopIndex(env), 200, 300);
     }
@@ -361,7 +388,7 @@ async function pourFetch(request, env, ctx) {
     }
     if (rest === "api/stats") {
       const s = await stats(env);
-      return json({ formulae: s.formulae, casks: s.casks, apps: s.apps, tools: s.tools, desktop: s.desktop, downloads_for_other_systems: s.toolInstallers + s.desktopInstallers, synced_at: s.synced_at, version: s.version, total: s.formulae + s.casks + s.tools });
+      return json({ formulae: s.formulae, casks: s.casks, apps: s.apps, tools: s.tools, desktop: s.desktop, windows: s.windows, downloads_for_other_systems: s.toolInstallers + s.desktopInstallers + s.windowsInstallers, synced_at: s.synced_at, version: s.version, total: s.formulae + s.casks + s.tools });
     }
     if (rest === "api/search") {
       const q = (url.searchParams.get("q") || "").trim().toLowerCase();
