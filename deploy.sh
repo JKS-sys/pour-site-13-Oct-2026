@@ -15,8 +15,11 @@ load_env() {
     [[ "$line" =~ ^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]] || continue
     key="${BASH_REMATCH[2]}"; val="${BASH_REMATCH[3]}"
     if [[ "$val" =~ ^\"(.*)\"$ ]] || [[ "$val" =~ ^\'(.*)\'$ ]]; then val="${BASH_REMATCH[1]}"; fi
-    [ -z "${!key:-}" ] && export "$key=$val"
+    # (an `a && b` last line would return 1 when the key is already set, and set -e would end the
+    #  whole deploy right here without a word — that was "the Pour Worker did not deploy")
+    if [ -z "${!key:-}" ]; then export "$key=$val"; fi
   done < "$file"
+  return 0
 }
 for f in ./.env ./.env.local ../.env.local ../.env "$HOME/.ipconfig.env"; do load_env "$f"; done
 [ -n "${CLOUDFLARE_API_TOKEN:-}" ] || { echo "✗ CLOUDFLARE_API_TOKEN is not set (.env.local)"; exit 1; }
