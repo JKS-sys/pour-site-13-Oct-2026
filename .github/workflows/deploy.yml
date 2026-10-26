@@ -1,0 +1,34 @@
+# Every push to main deploys the Pour pages (ipconfig.co.network/pour*) to Cloudflare.
+# Same deploy.sh as on the Mac, with the repository secret ENV_LOCAL.
+name: Deploy
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: deploy-pour
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Secrets
+        env:
+          ENV_LOCAL: ${{ secrets.ENV_LOCAL }}
+        run: |
+          if [ -z "$ENV_LOCAL" ]; then echo "::error::Add the repository secret ENV_LOCAL (the lines of .env.local)"; exit 1; fi
+          umask 077; printf '%s\n' "$ENV_LOCAL" > .env.local
+      - name: Deploy
+        env:
+          SKIP_PUSH: "1"
+          CI: "1"
+        run: bash deploy.sh
+      - name: Forget the secrets
+        if: always()
+        run: rm -f .env.local .dev.vars
