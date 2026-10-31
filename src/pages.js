@@ -34,7 +34,7 @@ ${noindex ? '<meta name="robots" content="noindex">' : ""}
 <link rel="icon" href="/pour/pour.svg" type="image/svg+xml">
 <link rel="preload" href="/fonts/baskerville-400.woff2" as="font" type="font/woff2" crossorigin>
 ${live ? live.head : '<link rel="stylesheet" href="/styles.css">'}
-<link rel="stylesheet" href="/pour/style.css">
+<link rel="stylesheet" href="/pour/style.css?v=2">
 <script>document.documentElement.classList.add('js');try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}</script>
 <script type="application/ld+json">${JSON.stringify(jsonld || softwareJsonLd(stats, host))}</script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "${env?.CF_ANALYTICS_TOKEN || ""}"}'></script>

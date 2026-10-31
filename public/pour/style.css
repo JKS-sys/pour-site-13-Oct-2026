@@ -120,7 +120,7 @@ body[data-shell="fallback"] .copy { font: inherit; font-size: .78rem; letter-spa
 }
 /* the pour wordmark under the logo (splash and banners) */
 .pour-mark { display: inline-grid; justify-items: center; gap: .1rem; }
-.pour-mark .pour-word { font: 700 clamp(1.8rem, 5vw, 2.6rem)/1 var(--font-display, Georgia, 'Times New Roman', serif); color: var(--c-gold); letter-spacing: .01em; margin: 0; }
+.pour-mark .pour-word { font: 700 clamp(1.8rem, 5vw, 2.6rem)/1 'Libre Baskerville', Baskerville, Georgia, serif; color: var(--c-gold); letter-spacing: .01em; margin: 0; }
 .pour-logo.pl-off * { animation-play-state: paused !important; }
 
 /* commands are the site's .prompt boxes; app.js colours the words, .copy copies */
@@ -135,7 +135,7 @@ body[data-shell="fallback"] .copy { font: inherit; font-size: .78rem; letter-spa
 .pour-term-bar span { width: 11px; height: 11px; border-radius: 50%; }
 .pour-term-bar span:nth-child(1) { background: #ff6a3d } .pour-term-bar span:nth-child(2) { background: #d9a441 } .pour-term-bar span:nth-child(3) { background: #62d26f }
 .pour-term-bar em { margin-left: auto; font-style: normal; font-size: .75rem; color: #b4ad9d; }
-.pour-term-body { margin: 0; padding: .9rem 1rem; min-height: 11.5rem; font-size: .86rem; line-height: 1.5; white-space: pre-wrap; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
+.pour-term-body { margin: 0; padding: .9rem 1rem; min-height: 11.5rem; font-size: .86rem; line-height: 1.5; white-space: pre-wrap; font-family: 'Libre Baskerville', Baskerville, Georgia, serif; font-variant-numeric: tabular-nums; }
 .pour-term-body .c-blue { color: #6cb6ff } .pour-term-body .c-green { color: #62d26f } .pour-term-body .c-gold { color: #d9a441 } .pour-term-body .c-dim { color: #b4ad9d } .pour-term-body .c-teal { color: #4fd1c5 } .pour-term-body .c-violet { color: #b392f0 } .pour-term-body .c-cyan { color: #56d4f5 } .pour-term-body .c-orange { color: #ff9a3c }
 .pour-cursor { display: inline-block; width: .55em; height: 1.05em; background: #d9a441; vertical-align: text-bottom; animation: pour-blink 1s steps(2) infinite; }
 @keyframes pour-blink { to { opacity: 0 } }
