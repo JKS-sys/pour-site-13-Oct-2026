@@ -83,15 +83,18 @@ let appsMemo = { until: 0, value: null };
 export async function appsIndex(env) {
   if (appsMemo.until > Date.now()) return appsMemo.value;
   const host = env.SITE_HOST || "ipconfig.co.network";
-  const base = (await cachedJson(env, "apps/index.json", `${RAW}/pour-apps${SFX}/main/index.json`)) || { meta: { name: "pour-apps" }, formulae: [], casks: [] };
-  let dash = [];
+  let base = (await cachedJson(env, "apps/index.json", `${RAW}/pour-apps${SFX}/main/index.json`)) || { meta: { name: "pour-apps" }, formulae: [], casks: [] };
+  let dash = [], hidden = new Set();
   try {
     // ?pour=1: every app the dashboard knows except the ones switched off — a new app that
     // registered itself (first ping, crash report, Owner Panel sync) is in Pour as soon as
     // its release feed answers with a version and a download; nobody has to approve it.
     const r = env.SITE ? await env.SITE.fetch(new Request(`https://${host}/api/v1/apps?pour=1`, { headers: { accept: "application/json" } })) : null;
-    if (r && r.ok) dash = (await r.json()).apps || [];
+    if (r && r.ok) { const j = await r.json(); dash = j.apps || []; hidden = new Set(j.hidden || []); }
   } catch {}
+  // The dashboard decides: an app switched off, or kept out of Pour in its App options, leaves Pour's
+  // list even when pour-apps still carries it (CutFlow, Hone and Deft were listed that way).
+  base = { ...base, casks: (base.casks || []).filter((c) => !hidden.has(c.token)) };
   const have = new Set((base.casks || []).map((c) => c.token));
   const fresh = dash.filter((a) => a && /^[a-z][a-z0-9-]{1,23}$/.test(a.id) && !have.has(a.id) && a.status !== "off");
   const added = (await Promise.all(fresh.map(async (a) => (a.status === "on" || (await feedQualifies(env, a, host)) ? dashboardCask(a, host) : null)))).filter(Boolean);
