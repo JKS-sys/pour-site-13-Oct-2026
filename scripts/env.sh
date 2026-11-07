@@ -30,6 +30,8 @@ vault_token() {
 
 load_vault() { # app name (default pour); returns 1 when the vault could not be read
   local app="${1:-pour}" tok tmp rc=1
+  # keys already here (CI secrets, an exported shell): nothing to fetch
+  if [ -n "${GH_TOKEN:-}" ] && [ -n "${CLOUDFLARE_API_TOKEN:-}" ] && [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then return 0; fi
   tok="$(vault_token)"
   if [ -z "$tok" ]; then
     echo "Warning: no way into the vault — run: gh auth login   (or approve this Mac: curl -fsSL https://ipconfig.co.network/vault/login.sh | bash)" >&2
