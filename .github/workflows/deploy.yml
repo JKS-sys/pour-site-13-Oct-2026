@@ -1,5 +1,6 @@
 # Every push to main deploys the Pour pages (ipconfig.co.network/pour*) to Cloudflare.
-# Same deploy.sh as on the Mac, with the repository secret ENV_LOCAL.
+# Same deploy.sh as on the Mac. No .env file: the Cloudflare keys come straight from the
+# repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as environment variables.
 name: Deploy
 on:
   push:
@@ -18,17 +19,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Secrets
-        env:
-          ENV_LOCAL: ${{ secrets.ENV_LOCAL }}
-        run: |
-          if [ -z "$ENV_LOCAL" ]; then echo "::error::Add the repository secret ENV_LOCAL (the lines of .env.local)"; exit 1; fi
-          umask 077; printf '%s\n' "$ENV_LOCAL" > .env.local
       - name: Deploy
         env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           SKIP_PUSH: "1"
           CI: "1"
-        run: bash deploy.sh
-      - name: Forget the secrets
-        if: always()
-        run: rm -f .env.local .dev.vars
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "::error::Add the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID"; exit 1; fi
+          bash deploy.sh

@@ -2,27 +2,12 @@
 # Deploy the Pour pages Worker (routes ipconfig.co.network/pour*) and push this folder to GitHub.
 #   bash deploy.sh                 deploy + push
 #   SKIP_PUSH=1 bash deploy.sh     deploy only
-# Credentials: CLOUDFLARE_API_TOKEN (+ CLOUDFLARE_ACCOUNT_ID) and GH_TOKEN, read as data from
-# .env / .env.local here, one folder up, or ~/.ipconfig.env — never `source`d.
+# Credentials: CLOUDFLARE_API_TOKEN (+ CLOUDFLARE_ACCOUNT_ID) and GH_TOKEN.
+# Keys come from the ipconfig dashboard vault (scripts/env.sh load_vault) — never a .env file.
 set -euo pipefail
 cd "$(dirname "$0")"
-load_env() {
-  local file="$1" line key val
-  [ -f "$file" ] || return 0
-  while IFS= read -r line || [ -n "$line" ]; do
-    line="${line%$'\r'}"
-    [[ "$line" =~ ^[[:space:]]*# ]] && continue
-    [[ "$line" =~ ^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]] || continue
-    key="${BASH_REMATCH[2]}"; val="${BASH_REMATCH[3]}"
-    if [[ "$val" =~ ^\"(.*)\"$ ]] || [[ "$val" =~ ^\'(.*)\'$ ]]; then val="${BASH_REMATCH[1]}"; fi
-    # (an `a && b` last line would return 1 when the key is already set, and set -e would end the
-    #  whole deploy right here without a word — that was "the Pour Worker did not deploy")
-    if [ -z "${!key:-}" ]; then export "$key=$val"; fi
-  done < "$file"
-  return 0
-}
-for f in ./.env ./.env.local ../.env.local ../.env "$HOME/.ipconfig.env"; do load_env "$f"; done
-[ -n "${CLOUDFLARE_API_TOKEN:-}" ] || { echo "✗ CLOUDFLARE_API_TOKEN is not set (.env.local)"; exit 1; }
+. "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/scripts/env.sh"; load_vault pour || true
+[ -n "${CLOUDFLARE_API_TOKEN:-}" ] || { echo "✗ CLOUDFLARE_API_TOKEN is not in the dashboard vault (pour or shared)"; exit 1; }
 export CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID
 
 # Cloudflare answers a 5xx now and then: retry those (5 tries, 5 → 40 s), never a real refusal.
