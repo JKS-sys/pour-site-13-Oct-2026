@@ -180,9 +180,12 @@ export function dashboardCask(a, host = "ipconfig.co.network") {
     version: a.latest_version || "latest", sha256: "no_check", url: "", container: { type: "tar" },
     artifacts: [{ app: [`${name}.app`] }], auto_updates: true,
     caveats: `${name} was registered on the dashboard; Pour installs the newest build from its release feed.`,
-    pour: { livecheck: feed, clear_quarantine: true, installers: [], status: "registered", source: "dashboard" },
+    pour: { livecheck: feed, clear_quarantine: !DEVELOPER_ID.has(a.id), installers: [], status: "registered", source: "dashboard" },
   };
 }
+
+/* Mac builds signed with the creator's Apple Developer ID and notarised (checked 9 Nov 2026): no quarantine clearing. */
+const DEVELOPER_ID = new Set(["mend", "dial", "bill", "tote", "keg", "nib", "veil", "cine", "keel", "hone", "deft", "cup", "swep"]);
 
 /** Small JSON documents with a per-isolate memory cache. */
 const memo = new Map();

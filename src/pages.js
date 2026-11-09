@@ -239,7 +239,7 @@ export function appsPage({ theme, stats, env , shell }) {
 <section class="sheet pour-sheet"><div class="pour-cards">${rows}</div>
 ${rule('How it works on each system')}
 <ul class="pour-list">
-<li><strong>macOS</strong> — the <code>.app</code> is placed in <code>/Applications</code>; the Gatekeeper quarantine mark is cleared because these apps are signed with the creator's own identity, not notarised with Apple. <code>pour uninstall --zap &lt;app&gt;</code> removes preferences and caches too.</li>
+<li><strong>macOS</strong> — the <code>.app</code> is placed in <code>/Applications</code>; apps signed with the creator's Apple Developer ID and notarised by Apple open like any Mac app. <code>pour uninstall --zap &lt;app&gt;</code> removes preferences and caches too.</li>
 <li><strong>Linux and ChromeOS</strong> — a <code>.deb</code> through apt/dpkg where available, else the AppImage goes into <code>/opt/pour/Caskroom</code> with a launcher in <code>/opt/pour/bin</code>.</li>
 <li><strong>Windows</strong> — the signed installer runs silently; <code>pour</code> itself keeps the receipt.</li>
 <li><strong>FreeBSD</strong> — the apps that ship a FreeBSD build are unpacked into the Caskroom.</li>
