@@ -263,6 +263,29 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const isPage = (request.method === "GET" || request.method === "HEAD") && !POUR_ONLY.test(url.pathname);
+    // Edge copy of a rendered page for 2 minutes, one per page and theme. Only for visitors with no
+    // cookie but the theme one and no query string, so nothing personal is ever stored or shared.
+    const cookie = request.headers.get("cookie") || "";
+    const plain = isPage && request.method === "GET" && !url.search && !cookie.replace(/(?:^|;\s*)theme=(light|dark)/g, "").trim();
+    const pageKey = plain ? new Request(`https://edge.pour${url.pathname}?t=${theme(request)}`) : null;
+    if (pageKey) {
+      const hit = await caches.default.match(pageKey);
+      if (hit) {
+        const out = new Response(hit.body, hit);
+        out.headers.set("cache-control", out.headers.get("x-origin-cache") || "no-cache");
+        out.headers.delete("x-origin-cache");
+        out.headers.set("x-pour-cache", "hit");
+        return out;
+      }
+    }
+    const keep = (res) => {
+      if (!pageKey || res.status !== 200 || res.headers.has("set-cookie") || !(res.headers.get("content-type") || "").includes("text/html")) return;
+      const copy = new Response(res.clone().body, res);
+      copy.headers.set("x-origin-cache", res.headers.get("cache-control") || "no-cache");
+      copy.headers.set("cache-control", "public, s-maxage=120");
+      for (const h of ["cdn-cache-control", "cloudflare-cdn-cache-control", "vary", "report-to", "nel"]) copy.headers.delete(h);
+      ctx.waitUntil(caches.default.put(pageKey, copy));
+    };
     if (isPage && env.SITE) {
       try {
         const r = await env.SITE.fetch(request.clone());
@@ -271,6 +294,7 @@ export default {
         if (r.status !== 404 && r.status < 500 && !stopGap) {
           const out = new Response(r.body, r);
           out.headers.set("x-served-by", "ipconfig");
+          keep(out);
           return out;
         }
       } catch {}
@@ -279,6 +303,7 @@ export default {
     if (isPage) {
       const out = new Response(res.body, res);
       out.headers.set("x-served-by", "pour-fallback");
+      keep(out);
       return out;
     }
     return res;
